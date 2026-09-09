@@ -3,6 +3,7 @@
 ## 0. Le cadre du prototype (décidé)
 
 - **Deux boîtes** : à la maison, et chez le meilleur copain, dont les parents sont partants.
+  Le matériel prévoit **5 destinataires** dès le départ, pour n'avoir à rien rouvrir ensuite.
 - **Un enfant de 7 ans** de chaque côté. Un seul destinataire par boîte.
 - **Aucune conservation des lettres.** Ni album, ni archive parentale. Les images sont
   détruites une fois imprimées ; ce qui reste, ce sont les tickets papier. La
@@ -43,17 +44,20 @@ arbitrage est douteux, c'est eux qui décident.
 1. Il écrit ou dessine sur une fiche A6 pré-imprimée, avec le feutre de la boîte (§4.1).
 2. Il glisse la fiche dans la fente, contre les butées (position garantie, pas
    d'alignement à réussir).
-3. Il appuie sur le gros bouton d'envoi. Le bouton clignote pendant l'envoi.
-4. Le bouton fait deux pulsations gaies quand la lettre a été **imprimée** chez le
-   copain. C'est l'accusé de réception, et c'est la moitié du plaisir.
+3. Il tourne la **roue** sur la photo du copain à qui il écrit.
+4. Il appuie sur **ENVOYER**. La boîte fait un bruit de traitement pendant le scan,
+   puis un son de départ quand la lettre est partie. Le voyant « il a lu ta lettre »
+   s'éteint : elle est en chemin.
+5. Plus tard, ce voyant se rallume avec un petit ding : le copain l'a imprimée.
 
 **Recevoir**
-1. Une cloche sonne (une vraie, frappée par un solénoïde) ou un carillon doux.
-2. Le voyant « courrier » reste allumé tant qu'il reste des lettres non imprimées.
-3. L'enfant appuie sur le bouton « imprimer » : une lettre sort. S'il en reste, le
-   voyant reste allumé. Il rappuie.
+1. La cloche sonne.
+2. Le voyant **TU AS DU COURRIER** reste allumé tant qu'il reste des lettres non
+   imprimées.
+3. L'enfant appuie sur **IMPRIMER** : une lettre sort. S'il en reste, le voyant reste
+   allumé. Il rappuie.
 
-Deux boutons, puisqu'il n'y a qu'un destinataire : **envoyer** et **imprimer**.
+Deux boutons, une roue, et un tableau de voyants qui se lisent sans rien décoder (§4.4).
 
 ## 4. Les décisions structurantes
 
@@ -163,63 +167,159 @@ La disponibilité se règle côté émetteur : la lettre part dans une **file lo
 persistante** et est réessayée jusqu'à acquittement. Si la boîte d'en face est
 éteinte, la lettre attend sur disque et part quand elle se rallume.
 
-### 4.4 Le langage lumière/son, version 7 ans
+### 4.4 Le tableau de bord : un voyant par idée, gravé en clair
 
-Un enfant de 7 ans ne décode pas une table de clignotements. L'interface se lit donc
-à **deux niveaux** : trois états pour l'enfant, le détail pour l'adulte.
+**Choix : un voyant dédié par information, avec son symbole et son texte gravés à
+côté. Aucune signification portée par une couleur ou un rythme de clignotement.**
 
-**Ce que l'enfant doit apprendre (et rien d'autre) :**
+C'est le bon principe et il mérite d'être énoncé comme tel : **l'information est
+portée par l'endroit où la lumière s'allume, pas par sa couleur ni son rythme.** Un
+code temporel (« rouge deux fois vite = plus de papier ») demande de se souvenir d'une
+table ; un voyant à côté du mot *PAPIER* ne demande rien. Ça coûte quelques LED et
+quelques broches — c'est-à-dire rien — et ça supprime la seule vraie difficulté
+d'ergonomie du projet. La couleur ne sert plus qu'à hiérarchiser (tout en blanc chaud,
+sauf l'alerte en rouge), donc elle peut être ignorée sans rien perdre : bon pour un
+enfant de 7 ans comme pour un daltonien.
 
-| | Signification |
-|---|---|
-| 🟢 Vert | Tout va bien, tu peux écrire |
-| ⚪ Blanc allumé + cloche | Tu as du courrier, appuie pour l'imprimer |
-| 🔴 Rouge | La boîte a un souci : va chercher un adulte |
+Corollaire : **on grave le texte, pas seulement le pictogramme.** À 7 ans on lit. Un
+mot est moins ambigu qu'un dessin.
 
-**Le détail, pour l'adulte, imprimé sur un carton collé sous la boîte :**
+#### Le panneau
 
-| État | Lumière | Son |
+```
+   ┌──────────────────────────────────────────────────────┐
+   │                                                      │
+   │   ● TU AS DU COURRIER          ○○○○○ TES LETTRES     │
+   │                                       DU JOUR        │
+   │   ● PLUS DE PAPIER                                   │
+   │                                                      │
+   │   ● APPELLE UN ADULTE   (rouge)                      │
+   │                                                      │
+   │   ┌────────────────┐                                 │
+   │   │   ( roue )     │   ● IL A LU TA LETTRE           │
+   │   │  Léo  ·  ·  ·  │                                 │
+   │   └────────────────┘                                 │
+   │                                                      │
+   │      [ ENVOYER ]              [ IMPRIMER ]           │
+   └──────────────────────────────────────────────────────┘
+```
+
+**La disposition fait partie du message.** Le voyant « il a lu ta lettre » est collé à
+la roue, parce que c'est le seul qui dépend du destinataire sélectionné ; les autres
+sont groupés à part, parce qu'ils parlent de la boîte. Un enfant ne lira jamais cette
+règle, mais il l'apprendra en deux jours parce que la lumière est au bon endroit.
+
+| Voyant | Allumé veut dire | Portée |
 |---|---|---|
-| Prêt | Vert fixe, faible | — |
-| Envoi en cours | Vert clignotant | clic doux |
-| Lettre imprimée chez le copain | Deux pulsations vertes | ding léger |
-| Lettre partie mais pas encore imprimée (> 6 h) | Vert, pulsation lente | — |
-| Courrier en attente d'impression | Blanc fixe | cloche à l'arrivée |
-| Quota épuisé | Orange, 3 clignotements à l'appui | note descendante |
-| Mode nuit | Respiration bleue très faible | aucun |
-| Pas de réseau | Rouge, clignotement lent | — |
-| Plus de papier / erreur imprimante | Rouge, double clignotement rapide | — |
-| Panne logicielle | Rouge fixe | — |
+| **TU AS DU COURRIER** | il reste au moins une lettre non imprimée | toute la boîte |
+| **IL A LU TA LETTRE** | le copain choisi sur la roue n'a plus aucune de tes lettres en attente | destinataire sélectionné |
+| **TES LETTRES DU JOUR** | 5 points : ce qu'il te reste à envoyer aujourd'hui | toute la boîte |
+| **PLUS DE PAPIER** | le rouleau est vide ou presque | toute la boîte |
+| **APPELLE UN ADULTE** | tout le reste (réseau, panne) — le détail est sur la page web | toute la boîte |
 
-Trois remarques :
-- Utiliser des **boutons d'arcade 30 mm à LED intégrée** : robustes, satisfaisants à
-  appuyer, et la LED est déjà dedans (un composant au lieu de deux).
-- Le **son de réception compte plus que la lumière** : une lampe dans une pièce vide
-  n'informe personne. Une vraie cloche frappée par un petit solénoïde 5 V (~3 €) est
-  ce qui transformera l'objet en événement dans la maison. Alternative charmante : le
-  **drapeau de boîte aux lettres américaine** relevé par un micro-servo, visible de
-  loin et immédiatement compris.
-- L'état « partie mais pas encore lue » compte à 7 ans : sans lui, une lettre chez un
-  copain absent trois jours ressemble à une lettre perdue.
+#### Trois ajustements par rapport à ta liste
+
+1. **Le crédit devient une jauge, pas une alarme.** Plutôt qu'un voyant « plus de
+   courrier disponible » qui ne s'allume qu'au moment du refus, cinq petits points qui
+   s'éteignent un par un. L'enfant voit son budget fondre, il apprend à le gérer, et
+   surtout il n'est jamais surpris — le refus sec au 6ᵉ envoi, sans prévenir, est la
+   frustration la plus facile à éviter du projet. Ça coûte quatre LED.
+2. **« Plus de papier » sort de « appelle un adulte ».** Ce sera 80 % des incidents,
+   c'est réparable en cinq secondes, et ça ne mérite pas de sortir un téléphone —
+   surtout chez le copain. Condition : choisir une imprimante qui **remonte l'état du
+   papier** en ESC/POS (`DLE EOT`, presque toutes les vraies 80 mm le font, beaucoup de
+   modules bas de gamme non). À mettre dans les critères d'achat.
+3. **« Il a lu ta lettre » est un état, pas un événement.** Ta formulation « la boîte
+   de réception du destinataire est clear ou pas » est meilleure que « le dernier
+   courrier a été lu » : elle ne demande pas de se souvenir de quel message on parle,
+   elle marche si on envoie trois lettres d'affilée, et elle se recalcule toute seule
+   après un redémarrage. Donc : **éteint = au moins une de mes lettres attend chez lui ;
+   allumé = il a tout imprimé.** Au repos (rien envoyé depuis des jours) il est allumé,
+   ce qui est vrai et rassurant. Ça demande une petite extension du protocole (§6.1).
+
+#### Les sons
+
+| Son | Quand | Caractère |
+|---|---|---|
+| Traitement | pendant le scan et l'envoi | tic-tic mécanique discret, façon vieux fax |
+| Départ | la lettre est acceptée par la boîte d'en face | souffle court |
+| Lecture | le copain vient d'imprimer ta lettre | ding léger, en même temps que le voyant |
+| **Arrivée** | une lettre arrive | **cloche franche, audible d'une autre pièce** |
+
+J'en propose quatre là où tu en demandais trois : je sépare *départ* et *lecture*,
+parce que ce sont deux moments distincts et que la lecture est la récompense
+émotionnelle de tout le système. Elle a besoin d'un son, pas seulement d'une lumière
+qu'on ne regarde pas au bon moment.
+
+Une règle et un détail matériel :
+- **La cloche d'arrivée doit être incomparable au reste.** Les trois autres sons sont
+  des confirmations discrètes, à portée de main. Une vraie cloche frappée par un
+  solénoïde 5 V (~3 €) fait de l'arrivée du courrier un événement dans la maison ; un
+  buzzer fait de la boîte un appareil électroménager.
+- **Un bouton de volume physique** (potentiomètre) sur le côté. Chez le copain, ses
+  parents doivent pouvoir baisser la cloche un soir sans te téléphoner. C'est le genre
+  de détail qui décide si l'objet reste branché.
+
+En mode nuit, tous les sons sont coupés et les voyants passent en très faible
+intensité — une boîte qui éclaire une chambre à 22 h finit dans un placard.
+
+### 4.5 La roue de sélection : oui, et c'est plus simple qu'un bouton
+
+**Choix : un commutateur rotatif 5 positions, une position = un porte-photo.**
+
+C'est faisable, c'est peu cher, et c'est le composant le plus adapté du projet.
+
+| | Encodeur rotatif (sans fin) | **Commutateur rotatif 5 positions** |
+|---|---|---|
+| Position | relative : le logiciel doit se souvenir | **absolue : le bouton pointe, c'est tout** |
+| Après un redémarrage | position perdue, il faut la réafficher | inchangée, physiquement vraie |
+| Retour visuel | il faut une LED par position | le repère gravé suffit |
+| Câblage | 2 broches | 5 broches (le Pi en a de reste) |
+| Prix | ~2 € | ~3–5 € |
+
+L'encodeur sans fin est le piège classique : sans écran, un sélecteur dont la position
+n'est pas lisible sur l'objet lui-même est ingérable. Le commutateur rotatif est
+**absolu** — la flèche du bouton pointe sur la photo de Léo, donc le destinataire est
+Léo, y compris après une coupure de courant, y compris pour un adulte qui n'a jamais
+vu la boîte. Zéro état logiciel, zéro ambiguïté.
+
+Câblage : commun au 3,3 V, une broche GPIO par position avec résistance de tirage. Le
+logiciel lit la position à chaque appui sur ENVOYER — c'est tout.
+
+**Chaque position est une fente porte-photo**, pas une gravure : on y glisse une petite
+photo du copain (ou son portrait dessiné par ton fils). Les quatre positions libres
+restent visiblement libres, et c'est une promesse formidable pour un enfant de 7 ans :
+*il y a de la place pour quatre autres copains*. Le jour où une boîte s'ajoute, on
+glisse une photo, on ajoute une clé dans la configuration, et c'est fini — pas de
+boîtier à rouvrir.
+
+Règle sur une position vide : ENVOYER répond par la note « non », rien d'autre. Ce
+n'est pas une panne, donc le voyant rouge ne s'allume pas.
+
+Détail à ne pas oublier côté logiciel : le destinataire est figé **au moment de l'appui**
+sur ENVOYER. Tourner la roue pendant qu'une lettre part ne change rien à sa destination,
+et met simplement à jour le voyant « il a lu ta lettre » pour le nouveau copain choisi.
 
 ## 5. Architecture logicielle
 
 ```
 ┌─────────────────── Boîte A (Raspberry Pi) ───────────────────┐
 │                                                              │
-│  boutons/LED ──► ui (gpiozero) ──┐                           │
-│                                  ▼                           │
+│  roue + 2 boutons ──► ui (gpiozero) ──┬──► 8 voyants         │
+│                                       └──► cloche + sons     │
+│                                  │                           │
 │  caméra ──────► capture ──► pipeline image ──► outbox/       │
 │                                                  │           │
 │                                            sender (retry)    │
 │                                                  │           │
 │  ┌───────────────────────────────────────────────┼────────┐  │
-│  │  état : SQLite (messages, quotas, accusés)    │        │  │
+│  │  état : SQLite (messages, quotas, pending/pair)│        │  │
 │  └───────────────────────────────────────────────┼────────┘  │
 │                                                  ▼           │
 │  imprimante ◄── printer (ESC/POS) ◄── inbox/ ◄── receiver    │
-│                    │                              (HTTP)    │
-│                    └──► purge (§6.2)                         │
+│       │            │                              (HTTP)     │
+│       │            └──► purge (§6.2)                         │
+│       └──► état papier (DLE EOT) ──► voyant PLUS DE PAPIER   │
 │                                                              │
 │  config web (LAN + tailnet, parents) ────────────────────────┤
 └──────────────────────────────────┬───────────────────────────┘
@@ -246,14 +346,23 @@ messages/<uuid>/
   state         queued | sent | delivered | printed | failed
 ```
 
-Un seul verbe réseau :
+Trois verbes réseau :
 ```
 POST /v1/letter    multipart (meta.json + page-1.png)
                    en-têtes X-Faxme-Device + X-Faxme-Signature (HMAC clé partagée)
                    → 202 {"id": ..., "status": "queued"}
 POST /v1/receipt   ← le destinataire signale l'IMPRESSION
-                   → l'émetteur fait ses deux pulsations vertes
+                   → allume « IL A LU TA LETTRE », joue le ding
+POST /v1/pending   ← le destinataire pousse son compteur à chaque changement
+                   {"from": "<moi>", "pending": 2}
+GET  /v1/pending   → filet de sécurité : l'émetteur interroge toutes les 5 min,
+                     au cas où une notification se serait perdue
 ```
+
+C'est `pending` qui fait vivre le voyant « il a lu ta lettre » : la boîte du copain est
+la seule à savoir combien de mes lettres attendent encore chez elle, et elle le dit à
+chaque arrivée et à chaque impression. Le sondage périodique évite le pire cas — un
+voyant éteint pour toujours à cause d'un paquet perdu.
 
 Trois propriétés à ne pas négocier :
 - **Idempotence par UUID** : un réessai ne doit jamais imprimer deux fois la même lettre.
@@ -289,10 +398,12 @@ Purge au démarrage aussi : un redémarrage ne doit pas ressusciter d'anciens fi
 ## 7. Garde-fous
 
 ### 7.1 Quota
-Compteur quotidien par appareil (défaut : **5 envois/jour**), remis à zéro à 4 h.
-Dépassement = refus doux (orange + note descendante), jamais une lettre perdue.
-La **réception et l'impression ne sont jamais bloquées par le quota** — sinon on
-punit un enfant pour ce que l'autre a fait.
+Cinq envois par jour, remis à zéro à 4 h, affichés en permanence par la jauge à cinq
+points (§4.4). Dépassement = le bouton ENVOYER répond par une note descendante, la
+jauge est déjà à zéro depuis le dernier envoi : aucune surprise, aucune lettre perdue.
+
+La **réception et l'impression ne sont jamais bloquées par le quota** — sinon on punit
+un enfant pour ce que l'autre a fait.
 
 La pile de fiches A6 est un second quota, physique, plus pédagogique que le premier.
 
@@ -314,14 +425,16 @@ tickets sur la table.
 |---|---|---|
 | Calculateur | Raspberry Pi 4 (2 Go) ou Zero 2 W | 40–60 |
 | Caméra | Camera Module 3 (autofocus) + nappe | 35 |
-| Imprimante | Thermique 80 mm ESC/POS USB | 55–90 |
-| Boutons | 2 arcade 30 mm à LED | 10 |
-| Son | Solénoïde + petite cloche, ou buzzer | 5–15 |
+| Imprimante | Thermique 80 mm ESC/POS USB, **avec capteur de papier** | 55–90 |
+| Boutons | 2 arcade 30 mm à LED (ENVOYER / IMPRIMER) | 10 |
+| Sélecteur | Commutateur rotatif 5 positions + bouton flèche | 5 |
+| Voyants | 8 LED (courrier, lu, 5 crédits, papier) + rouge alerte | 6 |
+| Son | Solénoïde + cloche, ampli, potentiomètre de volume | 15–25 |
 | Éclairage | Bandeau LED blanc + diffuseur | 8 |
 | Alimentation | **PSU dédiée pour l'imprimante** + PSU Pi | 20 |
 | Boîtier | Bois/contreplaqué, découpe simple | 15–30 |
-| Divers | Papier sans phénol, feutres, fiches, câbles | 20 |
-| | **Total** | **~210–290 € / boîte** |
+| Divers | Papier sans phénol, feutres, fiches, porte-photos, câbles | 25 |
+| | **Total** | **~230–320 € / boîte** |
 
 **Le piège classique, à traiter dès le jour 1 :** une imprimante thermique tire des
 pointes de plusieurs ampères pendant l'impression. Alimentée depuis le Pi ou depuis la
@@ -371,7 +484,8 @@ la précédente stable pendant quelques jours.
   pièces de la maison : c'est déjà un jouet formidable, et le meilleur banc de test.
 - **Phase 2 — Deux maisons** (1 week-end). Tailscale, réessais, LEDs et cloche,
   accusé de réception à l'impression, repli Wi-Fi en point d'accès.
-- **Phase 3 — Les garde-fous** (1 week-end). Quotas, mode nuit, page de configuration
+- **Phase 3 — Les garde-fous et le tableau de bord** (1 week-end). Les 8 voyants, la
+  roue, les 4 sons, quotas et jauge de crédits, mode nuit, page de configuration
   parents, journal technique.
 - **Phase 4 — L'objet** (le plus long). Boîtier, fiches et feutre, démarrage
   automatique, watchdog, résistance au débranchement sauvage, mise à jour à distance.
@@ -380,11 +494,13 @@ la précédente stable pendant quelques jours.
 
 | Panne | Réponse attendue |
 |---|---|
-| Boîte d'en face éteinte | La lettre attend dans l'outbox et part au réveil. Pulsation lente après 6 h, jamais de rouge. |
-| Réseau coupé | Rouge lent, envois mis en file, tout repart seul. |
+| Boîte d'en face éteinte | La lettre attend dans l'outbox et part au réveil. « Il a lu ta lettre » reste éteint, aucune alerte. |
+| Réseau coupé | APPELLE UN ADULTE + détail sur la page web. Envois mis en file, tout repart seul. |
 | Wi-Fi du copain changé | Point d'accès `faxme-setup` après 3 min (§9). |
-| Plus de papier | Rouge double clignotement. La lettre **reste non imprimée** dans l'inbox. |
+| Plus de papier | Voyant PLUS DE PAPIER. La lettre **reste non imprimée** dans l'inbox. |
 | Capture ratée (fiche de travers, doigt devant) | Appui long sur le bouton d'envoi = annuler la dernière lettre tant qu'elle n'est pas livrée. |
 | Ticket sorti puis déchiré/perdu | Appui long sur le bouton d'impression = réimprimer la dernière (24 h). |
 | Coupure de courant en pleine impression | La lettre reste marquée non imprimée : elle ressortira. Mieux vaut imprimer deux fois que perdre. |
+| Roue sur une position vide | Note « non » à l'appui sur ENVOYER. Ce n'est pas une panne. |
+| Fente vide ou fiche blanche | Détecté à la capture : note « non », ni envoi ni crédit consommé. |
 | Le Pi ne redémarre pas | Watchdog matériel + `Restart=always`. Un objet du quotidien ne se répare pas au clavier. |
