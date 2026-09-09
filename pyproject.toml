@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "faxme"
+version = "0.1.0"
+description = "Courrier papier entre enfants, sans écran"
+requires-python = ">=3.11"
+dependencies = ["numpy>=1.24", "pillow>=10.0"]
+
+[project.optional-dependencies]
+# Uniquement sur le Raspberry Pi. Volontairement hors des dépendances de base
+# pour que le pipeline reste testable sur un PC.
+pi = ["picamera2", "gpiozero"]
+dev = ["pytest>=7"]
+
+[project.scripts]
+faxme = "faxme.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

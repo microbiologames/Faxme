@@ -87,9 +87,15 @@ D'où trois décisions liées, qui sont du design produit autant que de la techn
   crayon à papier (gris, il scanne mal et disparaît à la binarisation), jamais de
   stylo bille clair. Le « feutre officiel du fax » attaché à la boîte par une
   ficelle : c'est un objet désirable pour un enfant *et* la garantie du contraste.
-- **Les fiches sont pré-imprimées** avec un interligne large (~8 mm) et une zone de
-  dessin. La fiche enseigne le format : écrire gros n'est pas une consigne à répéter,
-  c'est une contrainte du papier.
+- **Les fiches sont pré-imprimées** avec un interligne large (~8 mm). La fiche
+  enseigne le format : écrire gros n'est pas une consigne à répéter, c'est une
+  contrainte du papier. Toute cette réglure est imprimée **en orange clair à rouge
+  saturé**, et le pipeline ne lit que le canal rouge de la photo : les lignes y
+  apparaissent blanches et **ne partent donc jamais sur le ticket**, alors que le
+  feutre noir ou bleu reste parfaitement noir. L'enfant est guidé, le destinataire ne
+  reçoit que l'écriture. Contrepartie à assumer et à graver dans le marbre : **le
+  feutre ne doit jamais être rouge ni orange**, il disparaîtrait exactement de la
+  même façon.
 - **Le pipeline épaissit le trait** d'un point après binarisation (dilatation
   morphologique 1 px). Gratuit, et ça sauve les traits fins.
 
@@ -134,15 +140,38 @@ Prendre la **Camera Module 3 (autofocus)** plutôt qu'une caméra à focale fixe
 
 ```
 capture RAW
-  → recadrage fixe (calibré à l'installation)
-  → niveaux de gris
+  → rotation + recadrage fixe (calibré une fois à l'installation)
+  → canal rouge  ← fait disparaître la réglure orange de la fiche
+  → réduction à 2× la largeur du ticket (1152 px)
   → normalisation d'éclairage (division par un flou gaussien large)
-  → binarisation adaptative (Sauvola) — PAS de tramage Floyd-Steinberg
-  → dilatation 1 px (épaissit le trait de feutre)
-  → redressement fin (±3°) + recadrage sur la boîte d'encre
-  → redimensionnement à 576 px de large
-  → raster ESC/POS
+  → binarisation adaptative de Sauvola — PAS de tramage Floyd-Steinberg
+  → effacement d'une bande de 3 mm sur le pourtour  ← la découpe du papier
+  → estimation puis correction de l'inclinaison (±4°), puis rebinarisation
+  → rognage en hauteur sur l'écriture (l'échelle en largeur ne bouge pas)
+  → réduction à 576 points, seuil bas pour ne pas perdre les traits fins
+  → épaississement du trait, seulement s'il fait moins de 3 points
+  → en-tête « DE NINO » + date, dessiné dans le même raster
+  → raster ESC/POS (GS v 0)
 ```
+
+Quatre points appris en écrivant ce code, et qui ne se devinaient pas :
+
+- **Le bord du papier est le piège principal.** Sans l'effacement du pourtour, la
+  découpe de la fiche devient le plus gros trait de l'image : elle capture le cadrage
+  *et* fait échouer le redressement, dont le critère est alors dominé par cette barre
+  noire. Trois millimètres suffisent, à condition de calibrer le recadrage **à
+  l'intérieur** du papier et non sur son bord.
+- **Rogner en largeur est une fausse bonne idée.** Recadrer sur l'écriture fait bien
+  sortir des lettres plus grosses, mais l'échelle change alors d'une lettre à l'autre :
+  trois mots deviennent une affiche. On rogne donc en hauteur seulement — le ticket ne
+  fait que la longueur de ce qui a été écrit, et une minuscule fait toujours la même
+  taille.
+- **On n'épaissit le trait que s'il est trop fin.** Dilater systématiquement bouche les
+  boucles des *a*, des *e* et des *o* dès qu'on écrit au feutre large. La dilatation
+  est donc conditionnée à une mesure de l'épaisseur réelle.
+- **Deux fois la résolution finale suffit.** Mesuré : passer de 3× à 2× divise le temps
+  de traitement par trois sans changer l'épaisseur de trait, la longueur du ticket ni
+  l'angle trouvé, y compris avec un trait fin.
 
 Le point contre-intuitif : **surtout pas de tramage.** Le tramage est fait pour les
 photos ; sur du trait de feutre il produit une bouillie grise, consomme de l'énergie
@@ -581,12 +610,15 @@ pour le prototype, mais c'est la sortie de secours.
 Chaque phase est utilisable et testable en vrai. On ne passe à la suivante qu'une fois
 la précédente stable pendant quelques jours.
 
-- **Phase 0 — La boucle locale** (1 week-end). Un seul Pi, caméra + imprimante, un
-  bouton : on scanne, on imprime sur sa propre imprimante. Aucun réseau. But : valider
-  le pipeline image, le format de fiche et le feutre **en faisant écrire ton fils pour
-  de vrai**. C'est la phase qui décide de tout le reste — si le ticket n'est pas beau
-  et lisible, rien d'autre ne compte, et ça se voit ici. Au passage : un wattmètre sur
-  la prise pour trancher §9.7, et un relevé de température après une heure boîtier fermé.
+- **Phase 0 — La boucle locale.** Un seul Pi, caméra + imprimante, un bouton : on
+  scanne, on imprime sur sa propre imprimante. Aucun réseau. But : valider le pipeline
+  image, le format de fiche et le feutre **en faisant écrire ton fils pour de vrai**.
+  C'est la phase qui décide de tout le reste — si le ticket n'est pas beau et lisible,
+  rien d'autre ne compte, et ça se voit ici. Au passage : un wattmètre sur la prise
+  pour trancher §9.7, et un relevé de température après une heure boîtier fermé.
+  → **Le logiciel est écrit** (`src/faxme`, mode d'emploi dans `docs/PHASE0.md`) : le
+  pipeline, les fiches à imprimer, l'aperçu à taille réelle et la boucle bouton du Pi.
+  Ce qui reste est la validation avec du vrai papier et une vraie écriture.
 - **Phase 1 — Deux boîtes sur le même réseau** (1 week-end). Envoi/réception HTTP en
   LAN, file persistante, idempotence, purge après impression. On les met dans deux
   pièces de la maison : c'est déjà un jouet formidable, et le meilleur banc de test.

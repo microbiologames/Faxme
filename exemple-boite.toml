@@ -1,0 +1,23 @@
+# Configuration d'une boîte. Tout est optionnel : ce qui n'est pas écrit ici
+# garde sa valeur par défaut (voir src/faxme/config.py).
+
+[capture]
+# Le rectangle de la fiche dans l'image, en fractions de l'image.
+# Se relève une fois pour toutes avec :  faxme calibrer photo.jpg
+# Viser l'INTÉRIEUR du papier, jamais son bord.
+crop = [0.1430, 0.1009, 0.8570, 0.8991]
+rotate_quarters = 0
+# "red" avec les fiches pré-imprimées en orange (voir faxme fiches),
+# "luma" avec du papier vierge.
+gray_channel = "red"
+
+[ticket]
+sender = "Nino"
+
+# [pipeline]
+# fit = "trim"        # "trim" | "card" | "ink"
+# border_mm = 3.0
+# min_stroke_dots = 3
+
+# [printer]
+# dots_per_line = 576  # 384 pour une 58 mm
