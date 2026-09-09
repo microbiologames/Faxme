@@ -36,7 +36,7 @@ arbitrage est douteux, c'est eux qui décident.
 6. **L'attente fait partie du plaisir.** On ne cherche pas l'instantané. Le rituel
    (écrire, glisser, attendre, aller relever le courrier) est la valeur du produit.
 7. **Un objet posé chez quelqu'un d'autre doit se dépanner sans nous.** Tout ce qui
-   oblige à traverser la ville tuera le projet en trois semaines (§9).
+   oblige à traverser la ville tuera le projet en trois semaines (§10).
 
 ## 3. Le parcours de l'enfant
 
@@ -423,7 +423,8 @@ tickets sur la table.
 
 | Poste | Choix | € |
 |---|---|---|
-| Calculateur | Raspberry Pi 4 (2 Go) ou Zero 2 W | 40–60 |
+| Calculateur | Raspberry Pi 4 1 Go (déjà là) ou 2 Go, **sans ventilateur** | 0–60 |
+| Refroidissement | Dissipateur passif ou boîtier alu radiateur | 8 |
 | Caméra | Camera Module 3 (autofocus) + nappe | 35 |
 | Imprimante | Thermique 80 mm ESC/POS USB, **avec capteur de papier** | 55–90 |
 | Boutons | 2 arcade 30 mm à LED (ENVOYER / IMPRIMER) | 10 |
@@ -431,7 +432,7 @@ tickets sur la table.
 | Voyants | 8 LED (courrier, lu, 5 crédits, papier) + rouge alerte | 6 |
 | Son | Solénoïde + cloche, ampli, potentiomètre de volume | 15–25 |
 | Éclairage | Bandeau LED blanc + diffuseur | 8 |
-| Alimentation | **PSU dédiée pour l'imprimante** + PSU Pi | 20 |
+| Alimentation | **PSU dédiée pour l'imprimante** + PSU Pi officielle 3 A | 20 |
 | Boîtier | Bois/contreplaqué, découpe simple | 15–30 |
 | Divers | Papier sans phénol, feutres, fiches, porte-photos, câbles | 25 |
 | | **Total** | **~230–320 € / boîte** |
@@ -442,7 +443,113 @@ même petite alimentation, elle le fait redémarrer au milieu d'une lettre — p
 intermittente très pénible à diagnostiquer. **Alimentation séparée pour l'imprimante,
 masses reliées, dès le premier montage sur table.**
 
-## 9. La boîte chez le copain : la vraie difficulté
+## 9. Rester allumé : consommation, veille et fiabilité
+
+**Choix : la boîte reste allumée en permanence. Pas de veille, pas de Wake-on-LAN.**
+
+### 9.1 Sur un Raspberry Pi, la veille n'existe pas
+
+Un Pi n'a pas d'état de sommeil au sens d'un portable : pas de suspend-to-RAM, pas de
+S3. Il n'y a que deux états, allumé et éteint. **Le repos, c'est le ralenti** — et le
+ralenti d'un Pi 4 sans écran est déjà très bas. « Mettre en veille » signifierait donc
+couper l'alimentation et prévoir un circuit externe pour la rétablir, ce qui est un
+autre projet.
+
+### 9.2 Ce que ça coûte vraiment
+
+| Poste | Puissance au repos | Sur un an |
+|---|---|---|
+| Pi 4 sans écran, Wi-Fi actif | ~3 W | 26 kWh |
+| Imprimante thermique en veille | ~1 W | 9 kWh |
+| Pertes des alimentations | ~1 W | 9 kWh |
+| **Une boîte** | **~5 W** | **~44 kWh ≈ 9 €/an** |
+| **Les deux boîtes** | ~10 W | **~18 €/an** |
+
+À ~0,20 €/kWh. Un Pi Zero 2 W à la place du Pi 4 ferait économiser environ 2 W, soit
+**~3,5 € par boîte et par an**. Un module RTC capable de couper puis rétablir
+l'alimentation coûte 30 à 60 € pièce : il ne serait jamais amorti. Toute
+l'optimisation en jeu vaut moins qu'un rouleau de papier par mois.
+
+On peut gratter quelques dixièmes de watt en désactivant HDMI, Bluetooth et la LED
+d'activité dans `config.txt`. C'est gratuit, donc autant le faire, mais ça ne change
+pas la décision.
+
+### 9.3 Pourquoi le Wake-on-LAN ne s'applique pas
+
+Deux raisons, chacune suffisante :
+
+1. **Le paquet magique ne traverse pas Internet.** Le WoL est une trame de diffusion de
+   niveau 2 : elle ne circule que sur le réseau local. Pour réveiller la boîte du
+   copain depuis chez toi, il faudrait un appareil **déjà allumé chez lui** pour
+   relayer le réveil — c'est-à-dire exactement la chose qu'on cherchait à éviter.
+2. **Le Raspberry Pi ne le supporte pas.** La carte réseau du Pi 4 n'implémente pas le
+   WoL et n'est pas alimentée à l'arrêt ; en Wi-Fi, le WoWLAN n'est pas exploitable sur
+   les puces des Pi. À vérifier en une commande sur ta carte : `ethtool eth0 | grep
+   Wake` — il répondra `Supports Wake-on: d`, c'est-à-dire rien.
+
+### 9.4 La vraie raison de ne pas dormir : la cloche
+
+Même si le réveil marchait, il ne faudrait pas s'en servir. **Une boîte endormie ne
+peut pas sonner.** Le courrier arriverait en silence et ne serait découvert que par
+hasard, ou au prochain passage de l'enfant devant la boîte — c'est-à-dire que le cœur
+du produit disparaîtrait pour économiser 3,50 € par an. Le délai de démarrage de 30 à
+60 s que tu as mesuré n'est même pas le problème : le problème est qu'il n'y a personne
+pour décider de démarrer.
+
+C'est donc une question de produit, pas de watts. La boîte est un objet de la maison,
+comme une lampe de couloir : elle est là, elle est prête, elle ne demande rien.
+
+### 9.5 Quelle machine, puisque les Zero 2 W sont introuvables
+
+**Le Pi 4 1 Go que tu as déjà est le bon choix, et sans ventilateur.**
+
+- **1 Go suffit largement.** Le pipeline traite une image de 12 Mpx en niveaux de gris,
+  soit ~12 Mo de tableau, quelques copies intermédiaires, sur un système sans interface
+  graphique. On est très loin de la limite.
+- **Aucun problème thermique**, à condition de respecter deux choses : un **dissipateur
+  passif** (un boîtier alu qui fait radiateur est encore mieux) et **quelques fentes
+  d'aération** dans le coffret bois. Le travail réel est une bouffée de 2 à 5 secondes
+  de calcul toutes les quelques heures ; le reste du temps la carte est au ralenti,
+  autour de 50 °C, très loin des 80 °C où elle commence à se brider. Ce qui tue un Pi
+  sans ventilateur, c'est une charge continue dans une boîte hermétique — on n'a ni
+  l'une ni l'autre.
+- **Prends la même carte pour la deuxième boîte.** Deux Pi 4 identiques, c'est une
+  seule image système, un seul jeu de scripts, un seul comportement à déboguer, et une
+  carte SD interchangeable en cas de panne chez le copain. **L'homogénéité vaut
+  beaucoup plus que l'optimisation** sur un parc de deux appareils.
+- Note de dépendance : la Camera Module 3 et `picamera2` enferment le projet dans
+  l'écosystème Raspberry Pi. C'est acceptable et assumé ; le jour où ce serait un
+  problème, le repli est une webcam USB, au prix de l'autofocus.
+
+### 9.6 Le vrai risque d'un objet allumé en permanence : la carte SD
+
+Ce n'est pas la consommation, c'est la corruption. Un Pi débranché brutalement — et il
+le sera, par une rallonge tirée, un ménage, un orage — finit par abîmer sa carte SD.
+Sur la boîte du copain, ça veut dire un déplacement.
+
+Trois mesures, dans l'ordre du rapport bénéfice/effort :
+
+1. **Racine en lecture seule** (overlay `overlayfs`, activable par `raspi-config`), plus
+   une petite partition inscriptible pour SQLite et les lettres en transit. Le système
+   devient à peu près indestructible : un débranchement ne peut plus corrompre que la
+   partition de données, qui est minuscule.
+2. **SQLite en mode WAL avec `synchronous=FULL`** pour l'état des messages. Une lettre
+   ne doit jamais changer d'état à moitié.
+3. **Pas de swap**, journalisation en RAM (`log2ram` ou `Storage=volatile`). Moins
+   d'écritures, plus de durée de vie.
+
+### 9.7 Optionnel : couper l'imprimante entre deux impressions
+
+Un MOSFET ou un petit relais piloté par le GPIO peut couper l'alimentation de
+l'imprimante au repos et la rétablir avant impression — elle démarre instantanément.
+Gain : ~1 W et un peu de chaleur en moins. Coût : une énumération USB à gérer à chaque
+réveil, donc un mode de panne de plus.
+
+À décider **après mesure**, en phase 0, avec un wattmètre sur la prise. Optimiser à
+l'aveugle une consommation qu'on n'a pas mesurée est le meilleur moyen d'ajouter une
+panne pour économiser un euro.
+
+## 10. La boîte chez le copain : la vraie difficulté
 
 Ce n'est pas un détail d'installation, c'est la contrainte qui décide si le projet
 survit à l'hiver. Une boîte chez quelqu'un d'autre, c'est : leur Wi-Fi, leur prise,
@@ -469,7 +576,7 @@ Option à garder en tête si leur réseau devient un problème récurrent : une 
 une SIM IoT (~3–5 €/mois) rend la boîte totalement indépendante de leur box. Trop tôt
 pour le prototype, mais c'est la sortie de secours.
 
-## 10. Feuille de route
+## 11. Feuille de route
 
 Chaque phase est utilisable et testable en vrai. On ne passe à la suivante qu'une fois
 la précédente stable pendant quelques jours.
@@ -478,7 +585,8 @@ la précédente stable pendant quelques jours.
   bouton : on scanne, on imprime sur sa propre imprimante. Aucun réseau. But : valider
   le pipeline image, le format de fiche et le feutre **en faisant écrire ton fils pour
   de vrai**. C'est la phase qui décide de tout le reste — si le ticket n'est pas beau
-  et lisible, rien d'autre ne compte, et ça se voit ici.
+  et lisible, rien d'autre ne compte, et ça se voit ici. Au passage : un wattmètre sur
+  la prise pour trancher §9.7, et un relevé de température après une heure boîtier fermé.
 - **Phase 1 — Deux boîtes sur le même réseau** (1 week-end). Envoi/réception HTTP en
   LAN, file persistante, idempotence, purge après impression. On les met dans deux
   pièces de la maison : c'est déjà un jouet formidable, et le meilleur banc de test.
@@ -490,17 +598,18 @@ la précédente stable pendant quelques jours.
 - **Phase 4 — L'objet** (le plus long). Boîtier, fiches et feutre, démarrage
   automatique, watchdog, résistance au débranchement sauvage, mise à jour à distance.
 
-## 11. Modes de panne à traiter explicitement
+## 12. Modes de panne à traiter explicitement
 
 | Panne | Réponse attendue |
 |---|---|
 | Boîte d'en face éteinte | La lettre attend dans l'outbox et part au réveil. « Il a lu ta lettre » reste éteint, aucune alerte. |
 | Réseau coupé | APPELLE UN ADULTE + détail sur la page web. Envois mis en file, tout repart seul. |
-| Wi-Fi du copain changé | Point d'accès `faxme-setup` après 3 min (§9). |
+| Wi-Fi du copain changé | Point d'accès `faxme-setup` après 3 min (§10). |
 | Plus de papier | Voyant PLUS DE PAPIER. La lettre **reste non imprimée** dans l'inbox. |
 | Capture ratée (fiche de travers, doigt devant) | Appui long sur le bouton d'envoi = annuler la dernière lettre tant qu'elle n'est pas livrée. |
 | Ticket sorti puis déchiré/perdu | Appui long sur le bouton d'impression = réimprimer la dernière (24 h). |
 | Coupure de courant en pleine impression | La lettre reste marquée non imprimée : elle ressortira. Mieux vaut imprimer deux fois que perdre. |
 | Roue sur une position vide | Note « non » à l'appui sur ENVOYER. Ce n'est pas une panne. |
 | Fente vide ou fiche blanche | Détecté à la capture : note « non », ni envoi ni crédit consommé. |
+| Débranchement sauvage | Racine en lecture seule : rien à réparer au rallumage (§9.6). |
 | Le Pi ne redémarre pas | Watchdog matériel + `Restart=always`. Un objet du quotidien ne se répare pas au clavier. |
