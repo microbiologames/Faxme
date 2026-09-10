@@ -163,6 +163,18 @@ class MailConfig:
     # est simplement jeté.
     forward_unknown_to: str = ""
 
+    # Le mot de passe de la porte, partagé avec les adultes du carnet et eux
+    # seuls : l'objet du message doit le contenir, sinon rien n'est imprimé.
+    # Ce n'est pas un secret cryptographique — il circule en clair dans les
+    # objets d'e-mails — c'est un **marqueur d'intention** : il distingue
+    # « j'écris une lettre à Raphaël » de « j'ai envoyé un mail à cette
+    # adresse ». Vide = pas d'exigence.
+    subject_keyword: str = "RAPH.FAXME"
+
+    # Répondre à un adulte du carnet qui a oublié le mot-clé, pour lui
+    # expliquer. Une fois par jour et par expéditeur, et jamais à un inconnu.
+    reply_hint: bool = True
+
     max_pages: int = 3
     max_attachment_mb: int = 20
 

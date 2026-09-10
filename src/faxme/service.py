@@ -15,7 +15,7 @@ import numpy as np
 from . import escpos, mailbox, ticket
 from .config import Config
 from .contacts import AddressBook, Contact
-from .mailbox import Gateway, Rejected
+from .mailbox import Gateway, MissingKeyword, Rejected
 from .store import Message, Store
 
 
@@ -32,11 +32,14 @@ class CollectReport:
     accepted: list[str] = field(default_factory=list)
     rejected: list[str] = field(default_factory=list)
     duplicates: int = 0
+    hinted: list[str] = field(default_factory=list)
 
     def __str__(self) -> str:
+        hints = f", {len(self.hinted)} rappel(s) de la règle" if self.hinted else ""
         return (
             f"{len(self.accepted)} lettre(s) reçue(s), "
             f"{len(self.rejected)} refusée(s), {self.duplicates} déjà connue(s)"
+            f"{hints}"
         )
 
 
@@ -55,6 +58,14 @@ def collect(store: Store, config: Config, gateway: Gateway) -> CollectReport:
     for number, message in gateway.fetch():
         try:
             accepted = mailbox.accept(message, book, config)
+        except MissingKeyword as reason:
+            # Un adulte du carnet a simplement oublié l'objet : on le lui dit,
+            # au lieu de le laisser croire que sa lettre est arrivée.
+            report.rejected.append(str(reason))
+            if _hint(message, store, config, gateway):
+                report.hinted.append(mailbox.sender_address(message))
+            to_delete.append(number)
+            continue
         except Rejected as reason:
             report.rejected.append(str(reason))
             _forward_unknown(message, config, gateway)
@@ -76,6 +87,20 @@ def collect(store: Store, config: Config, gateway: Gateway) -> CollectReport:
 
     gateway.delete(to_delete)
     return report
+
+
+def _hint(message: EmailMessage, store: Store, config: Config, gateway: Gateway) -> bool:
+    """Explique la règle à un expéditeur du carnet. Renvoie True si c'est parti."""
+    if not config.mail.reply_hint or mailbox.looks_automated(message):
+        return False
+    address = mailbox.sender_address(message)
+    if not address or not store.should_hint(address):
+        return False
+    try:
+        gateway.send(mailbox.build_hint(address, config, config.ticket.sender))
+    except Exception:  # noqa: BLE001 - un rappel raté ne doit rien bloquer
+        return False
+    return True
 
 
 def _forward_unknown(message: EmailMessage, config: Config, gateway: Gateway) -> None:

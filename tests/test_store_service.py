@@ -71,6 +71,43 @@ def test_the_same_mail_collected_twice_is_printed_once(tmp_path):
     assert len(store.pending()) == 1
 
 
+def test_a_forgotten_keyword_gets_one_explanation_a_day(tmp_path):
+    """Un adulte du carnet qui oublie l'objet doit l'apprendre, pas rester dans le noir."""
+    config = replace(make_config(), contacts=tuple(make_book()))
+    store = make_store(tmp_path, config)
+
+    gateway = FakeGateway([make_message(subject="coucou")])
+    report = service.collect(store, config, gateway)
+    assert report.hinted == ["mamie@example.com"]
+    assert "RAPH.FAXME" in gateway.sent[0]["Subject"]
+    assert len(store.pending()) == 0
+
+    # Deuxième oubli le même jour : pas de deuxième rappel.
+    again = FakeGateway([make_message(subject="re coucou", message_id="<2@example.com>")])
+    assert service.collect(store, config, again).hinted == []
+    assert again.sent == []
+
+
+def test_an_unknown_sender_is_never_answered(tmp_path):
+    """Répondre confirmerait à un spammeur que l'adresse existe."""
+    config = replace(make_config(), contacts=tuple(make_book()))
+    store = make_store(tmp_path, config)
+    gateway = FakeGateway([make_message(sender="pub@spam.example", subject="coucou")])
+    report = service.collect(store, config, gateway)
+    assert report.hinted == []
+    assert gateway.sent == []
+
+
+def test_an_automated_mail_is_never_answered(tmp_path):
+    config = replace(make_config(), contacts=tuple(make_book()))
+    store = make_store(tmp_path, config)
+    message = make_message(subject="Notification")
+    message["Auto-Submitted"] = "auto-generated"
+    gateway = FakeGateway([message])
+    assert service.collect(store, config, gateway).hinted == []
+    assert gateway.sent == []
+
+
 def test_a_refused_mail_is_forwarded_to_the_parents(tmp_path):
     config = make_config()
     config = replace(

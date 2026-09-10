@@ -37,28 +37,56 @@ l'appareil.
 ```toml
 [mail]
 address = "raphael.faxme@gmail.com"
+subject_keyword = "RAPH.FAXME"            # à mettre dans l'objet pour être imprimé
 forward_unknown_to = "papa@example.com"   # facultatif : ce qui est refusé t'est renvoyé
 
 [[contacts]]
 name = "Mamie"            # le nom imprimé sur le ticket, jamais celui annoncé par le message
 kind = "email"
 address = "mamie@example.com"
-alias = "mamie7fk3"
 ```
+
+Une seule adresse pour tout le monde, qui se dicte au téléphone et se retient. Rien à
+créer quand un correspondant s'ajoute : on l'ajoute au carnet, c'est tout.
 
 Un message est imprimé **si et seulement si** les quatre conditions sont réunies :
 
 1. l'expéditeur est dans le carnet ;
 2. le message passe **DMARC**, ou à défaut **DKIM et SPF** — sans quoi n'importe qui
    ferait imprimer ce qu'il veut chez un enfant en écrivant « de la part de Mamie » ;
-3. la sous-adresse utilisée, s'il y en a une, correspond à celle du contact ;
+3. l'objet contient le mot-clé ;
 4. il contient une image exploitable ou du texte.
 
 Tout le reste est jeté, jamais mis en attente.
 
-> **L'alias `+mamie7fk3` identifie, il n'authentifie pas.** Sur Gmail, quiconque connaît
-> l'adresse de base peut y accoler le suffixe de son choix. Ce qui protège, c'est le
-> carnet et la vérification SPF/DKIM.
+### Le mot-clé, en pratique
+
+**Il tolère la vraie vie.** La comparaison se fait sur une forme normalisée, par
+inclusion : accents, casse, ponctuation et texte en plus sont sans importance.
+
+| Objet écrit | Résultat |
+|---|---|
+| `RAPH.FAXME` | ✅ |
+| `raph faxme` | ✅ |
+| `Re: RAPH.FAXME — une lettre de Raphaël` | ✅ (une simple réponse suffit) |
+| `TR : Raph-Faxme (photo du chat)` | ✅ |
+| `Coucou mon grand` | ❌ non imprimé |
+
+**Ce n'est pas un mot de passe.** Il voyage en clair dans les objets d'e-mails. C'est un
+marqueur d'intention : il distingue « j'écris une lettre à Raphaël » de « j'ai envoyé un
+message à cette adresse ». Le cas qu'il traite n'est pas l'intrus — la liste blanche
+l'arrête déjà — mais **la personne du carnet qui écrit sans vouloir écrire à l'enfant** :
+une réponse dans un fil de famille, un transfert, une adresse ajoutée à une conversation
+de groupe. Avec une adresse unique qui circule, c'est le cas le plus fréquent.
+
+**Un oubli reçoit une explication, une intrusion n'en reçoit aucune.** Quelqu'un du
+carnet qui écrit sans le mot-clé reçoit une réponse automatique le lui rappelant — une
+fois par jour, jamais deux, et jamais à un message de machine. Un expéditeur inconnu ne
+reçoit rien : lui répondre lui confirmerait que l'adresse existe.
+
+**Les lettres sortantes portent le mot-clé dans leur objet**, pour qu'une simple réponse
+de l'adulte passe la règle sans qu'il ait à y penser. On ne demande de s'en souvenir
+qu'à celui qui écrit le premier.
 
 ## 3. Ce qu'on dit aux adultes
 
@@ -67,10 +95,16 @@ Tout le reste est jeté, jamais mis en attente.
 > Raphaël a une petite boîte qui imprime le courrier sur du papier, et il peut la
 > relever tout seul — il n'y a pas d'écran.
 >
-> Pour lui écrire, envoie un e-mail à **raphael.faxme+mamie7fk3@gmail.com**. Tu peux
-> taper ton message directement, ou mieux : écris-lui un mot à la main sur une feuille,
-> prends-le en photo avec ton téléphone et joins la photo. Si ton téléphone a un mode
-> « numériser un document », utilise-le, le résultat sera plus net.
+> Pour lui écrire, envoie un e-mail à **raphael.faxme@gmail.com**, avec
+> **RAPH.FAXME** dans l'objet — c'est ce qui déclenche l'impression, sans ça le message
+> est ignoré. Tu peux ajouter ce que tu veux après dans l'objet.
+>
+> Tu peux taper ton message directement, ou mieux : écris-lui un mot à la main sur une
+> feuille, prends-le en photo avec ton téléphone et joins la photo. Si ton téléphone a
+> un mode « numériser un document », utilise-le, le résultat sera plus net.
+>
+> Quand Raphaël te répondra, tu recevras sa lettre par e-mail : réponds simplement à son
+> message sans changer l'objet, et ça marchera tout seul.
 >
 > Il verra une lumière s'allumer, appuiera sur un bouton, et ta lettre sortira.
 
@@ -127,6 +161,7 @@ WantedBy=multi-user.target
 | **Idempotence** | Un même e-mail relevé deux fois n'est imprimé qu'une fois, y compris après un redémarrage en plein traitement. |
 | **Purge** | L'image est effacée une fois imprimée ou envoyée. La dernière lettre imprimée reste 24 h, pour la réimprimer si le ticket s'est déchiré. |
 | **Suppression côté serveur** | Le message est supprimé de Gmail après traitement, corbeille comprise. |
+| **Rappel de la règle** | Un contact du carnet qui oublie le mot-clé reçoit une explication, au plus une fois par jour. |
 
 ## 7. Ce que la passerelle ne peut pas tenir
 

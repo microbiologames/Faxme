@@ -498,11 +498,17 @@ cette propriété si on n'y prend pas garde. Quatre règles, toutes obligatoires
 1. **Liste blanche stricte**, configurée par les parents. Un expéditeur inconnu n'est
    pas imprimé, pas signalé, pas mis en attente : il est jeté. Au besoin réexpédié à
    l'adresse des parents, jamais au papier.
-2. **Une adresse par adulte**, sous forme de sous-adresse : `raphael+mamie7fk3@…`.
-   Attention à ne pas s'illusionner : sur Gmail, quiconque connaît l'adresse de
-   base peut y accoler le suffixe de son choix. **L'alias identifie, il
-   n'authentifie pas.** Il sert à savoir de quel correspondant il s'agit, et à
-   repérer une adresse qui aurait fuité — pas à donner un droit.
+2. **Une seule adresse, et un mot-clé dans l'objet** : `RAPH.FAXME`, partagé avec
+   les adultes du carnet et eux seuls. Une adresse unique se dicte au téléphone,
+   se retient et n'oblige à rien créer quand un correspondant s'ajoute.
+   Ce mot-clé n'est pas un secret cryptographique — il voyage en clair dans les
+   objets d'e-mails — c'est un **marqueur d'intention**, et c'est là qu'est sa
+   vraie valeur : il distingue « j'écris une lettre à Raphaël » de « j'ai envoyé
+   un message à cette adresse ». Le cas qu'il traite n'est pas l'intrus, que la
+   liste blanche arrête déjà : c'est **la personne du carnet qui écrit sans
+   vouloir écrire à l'enfant** — une réponse à un fil de famille, un transfert,
+   une adresse ajoutée à une conversation de groupe. Avec une adresse unique qui
+   va circuler, ce cas devient le plus fréquent de tous.
 3. **Vérifier l'authentification du message.** Le champ `From:` d'un e-mail se falsifie
    en trois secondes. On lit l'en-tête `Authentication-Results` ajouté par le
    fournisseur et on n'accepte que si SPF et DKIM passent. Sans cette vérification,
@@ -511,6 +517,19 @@ cette propriété si on n'y prend pas garde. Quatre règles, toutes obligatoires
 4. **Le nom imprimé vient de la liste blanche, jamais du message.** Le ticket dit
    « DE MAMIE » parce que c'est ce que les parents ont écrit dans la configuration en
    face de cette adresse — pas parce que l'expéditeur s'est nommé ainsi.
+
+Deux conséquences pratiques sur le mot-clé, sans lesquelles la règle serait
+insupportable à l'usage :
+
+- **On compare des formes normalisées, par inclusion.** Un objet ne survit pas intact
+  au voyage : les clients ajoutent « Re: », « TR: », « Fwd: », les gens écrivent en
+  minuscules, mettent un espace au lieu du point, ou collent du texte après. Exiger une
+  égalité stricte reviendrait à garantir qu'une grand-mère sur deux voie sa lettre
+  ignorée sans jamais savoir pourquoi.
+- **Un oubli n'est pas une intrusion.** Quelqu'un du carnet, authentifié, qui écrit
+  sans le mot-clé reçoit une réponse automatique qui lui explique la règle — une fois
+  par jour, jamais deux. Un expéditeur inconnu, lui, ne reçoit **rien** : lui répondre
+  reviendrait à lui confirmer que l'adresse existe.
 
 ### 7.4 Ce qu'un e-mail peut contenir
 
@@ -531,6 +550,10 @@ Une position de la roue peut être un adulte plutôt qu'une boîte. La lettre pa
 en e-mail, l'image en pièce jointe et affichée dans le corps du message, avec une
 phrase qui entretient la boucle : *« Réponds à ce message, même juste avec un dessin,
 Raphaël l'imprimera. »*
+
+Détail qui compte : **le mot-clé est dans l'objet du message sortant**. La réponse de
+l'adulte, qui héritera de « Re: … », passe donc la règle sans qu'il ait à y penser. On
+ne demande de s'en souvenir qu'à celui qui écrit le premier.
 
 **Le voyant « IL A LU TA LETTRE » ne peut pas dire la vérité pour un e-mail.** Aucun
 accusé de lecture fiable n'existe. Deux options, aucune parfaite : l'allumer à
@@ -570,8 +593,9 @@ métadonnées, quel que soit le tuyau. Le code ne diffère qu'au dernier moment.
 ### 7.8 Ce qu'il faut choisir
 
 **Retenu : un compte Gmail dédié**, parce que la condition est que ce soit gratuit à
-l'usage. IMAP, sous-adressage et mot de passe d'application, sans abonnement. Fastmail
-serait plus propre mais il est payant.
+l'usage. IMAP et mot de passe d'application, sans abonnement. Fastmail serait plus
+propre mais il est payant. Le sous-adressage n'est plus nécessaire : une adresse
+unique, un mot-clé.
 
 - **Une adresse dédiée par boîte**, qui ne sert qu'à ça et n'est jamais publiée ailleurs
   que dans le carnet.

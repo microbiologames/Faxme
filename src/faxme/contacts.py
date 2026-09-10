@@ -15,7 +15,6 @@ class Contact:
     name: str  # le nom imprimé sur le ticket. Jamais celui annoncé par le message.
     kind: str  # "email" ou "box"
     address: str = ""  # e-mail de l'adulte, ou nom Tailscale de la boîte
-    alias: str = ""  # sous-adresse qui identifie ce contact à la réception
     wheel: int = 0  # position sur la roue, 0 = non attribué
 
     def __post_init__(self) -> None:
@@ -33,7 +32,7 @@ class Contact:
 
 
 class AddressBook:
-    """Recherche par adresse, par alias ou par position de roue."""
+    """Recherche par adresse, par nom ou par position de roue."""
 
     def __init__(self, contacts: tuple[Contact, ...] | list[Contact]):
         self._contacts = tuple(contacts)
@@ -58,15 +57,6 @@ class AddressBook:
         wanted = (address or "").strip().lower()
         for contact in self._contacts:
             if contact.address.lower() == wanted:
-                return contact
-        return None
-
-    def by_alias(self, alias: str) -> Contact | None:
-        wanted = (alias or "").strip().lower()
-        if not wanted:
-            return None
-        for contact in self._contacts:
-            if contact.alias and contact.alias.lower() == wanted:
                 return contact
         return None
 

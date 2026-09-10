@@ -20,6 +20,7 @@ import re
 import smtplib
 import subprocess
 import tempfile
+import unicodedata
 from dataclasses import dataclass, replace
 from email import policy as email_policy
 from email.message import EmailMessage
@@ -41,6 +42,15 @@ class Rejected(Exception):
     """Le message n'ira pas au papier. La raison sert au journal, pas au ticket."""
 
 
+class MissingKeyword(Rejected):
+    """Un adulte du carnet a écrit, mais sans le mot-clé dans l'objet.
+
+    Cas à part parce qu'il ne s'agit pas d'une intrusion mais d'un oubli : on
+    peut répondre à cette personne pour le lui expliquer, ce qu'on ne fera
+    jamais pour un expéditeur inconnu.
+    """
+
+
 @dataclass
 class Accepted:
     contact: Contact
@@ -55,22 +65,33 @@ def sender_address(message: EmailMessage) -> str:
     return parseaddr(message.get("From", ""))[1].strip().lower()
 
 
-def delivered_alias(message: EmailMessage, base_address: str) -> str:
-    """Extrait le ``+suffixe`` de l'adresse à laquelle le message a été livré.
+def normalize(text: str) -> str:
+    """Ramène un objet d'e-mail à ses seules lettres et chiffres, en majuscules.
 
-    L'alias sert à **identifier** le correspondant, pas à l'authentifier : sur
-    Gmail, n'importe qui connaissant l'adresse de base peut y ajouter le
-    suffixe de son choix. L'authentification, c'est la liste blanche plus
-    SPF/DKIM.
+    Un objet ne survit pas intact au voyage : les clients ajoutent « Re: »,
+    « TR: », « Fwd: », les gens écrivent en minuscules, avec un espace au lieu
+    du point, ou collent du texte après. Exiger une égalité stricte, ce serait
+    garantir qu'une grand-mère sur deux voie sa lettre ignorée sans savoir
+    pourquoi. On compare donc des formes normalisées, et par inclusion.
     """
-    local = base_address.split("@")[0].lower()
-    for header in ("Delivered-To", "X-Original-To", "To", "Cc"):
-        for value in message.get_all(header, []):
-            for candidate in re.findall(r"[\w.+-]+@[\w.-]+", value):
-                name = candidate.split("@")[0].lower()
-                if name.startswith(local + "+"):
-                    return name[len(local) + 1 :]
-    return ""
+    folded = unicodedata.normalize("NFKD", text or "")
+    ascii_only = "".join(c for c in folded if not unicodedata.combining(c))
+    return "".join(c for c in ascii_only.upper() if c.isalnum())
+
+
+def subject_matches(message: EmailMessage, keyword: str) -> bool:
+    if not keyword:
+        return True
+    return normalize(keyword) in normalize(message.get("Subject", ""))
+
+
+def looks_automated(message: EmailMessage) -> bool:
+    """Repère les messages de machines, à qui il ne faut jamais répondre."""
+    if (message.get("Auto-Submitted") or "no").lower() != "no":
+        return True
+    if (message.get("Precedence") or "").lower() in ("bulk", "list", "junk"):
+        return True
+    return any(message.get(header) for header in ("List-Id", "List-Unsubscribe"))
 
 
 def authentication_ok(message: EmailMessage) -> tuple[bool, str]:
@@ -202,9 +223,11 @@ def accept(message: EmailMessage, book: AddressBook, config: Config) -> Accepted
         if not ok:
             raise Rejected(f"{sender} : {reason}")
 
-    alias = delivered_alias(message, config.mail.address)
-    if alias and contact.alias and alias.lower() != contact.alias.lower():
-        raise Rejected(f"{sender} : alias {alias!r} ne correspond pas au carnet")
+    if not subject_matches(message, config.mail.subject_keyword):
+        raise MissingKeyword(
+            f"{sender} : objet sans « {config.mail.subject_keyword} » "
+            f"({message.get('Subject', '(sans objet)')!r})"
+        )
 
     external_id = (message.get("Message-ID") or "").strip()
     if not external_id:
@@ -223,16 +246,45 @@ def build_outgoing(
     message = EmailMessage()
     message["From"] = config.mail.address
     message["To"] = contact.address
-    message["Subject"] = f"Une lettre de {child_name}"
+    # Le mot-clé est dans l'objet pour que la réponse de l'adulte, qui héritera
+    # de « Re: … », passe la règle sans qu'il ait à y penser.
+    keyword = config.mail.subject_keyword
+    message["Subject"] = (
+        f"{keyword} — une lettre de {child_name}" if keyword
+        else f"Une lettre de {child_name}"
+    )
     message.set_content(
         f"{child_name} t'a écrit. Sa lettre est en pièce jointe.\n\n"
         "Réponds à ce message, même juste avec une photo d'un mot ou d'un "
         f"dessin : {child_name} pourra l'imprimer et le lire tout seul.\n"
+        "(Réponds sans changer l'objet : c'est lui qui fait arriver la lettre.)\n"
     )
     buffer = BytesIO()
     ticket.to_image(ink).save(buffer, format="PNG")
     message.add_attachment(
         buffer.getvalue(), maintype="image", subtype="png", filename="lettre.png"
+    )
+    return message
+
+
+def build_hint(to_address: str, config: Config, child_name: str) -> EmailMessage:
+    """La réponse à un adulte du carnet qui a oublié le mot-clé.
+
+    Envoyée uniquement à quelqu'un du carnet dont le message est authentifié.
+    Répondre à un inconnu reviendrait à lui confirmer que l'adresse existe.
+    """
+    keyword = config.mail.subject_keyword
+    message = EmailMessage()
+    message["From"] = config.mail.address
+    message["To"] = to_address
+    message["Subject"] = f"Ton message n'a pas été imprimé — mets {keyword} dans l'objet"
+    message["Auto-Submitted"] = "auto-replied"
+    message.set_content(
+        f"Ton message est bien arrivé, mais {child_name} ne l'a pas reçu sur "
+        "papier.\n\n"
+        f"Pour qu'une lettre soit imprimée, l'objet du message doit contenir "
+        f"{keyword}. C'est tout ; le reste de l'objet est libre.\n\n"
+        "Renvoie-le avec cet objet et il sortira de la boîte.\n"
     )
     return message
 

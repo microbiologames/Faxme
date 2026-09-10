@@ -39,6 +39,13 @@ CREATE TABLE IF NOT EXISTS messages (
     external_id TEXT                    -- identifiant côté source, pour l'idempotence
 );
 CREATE INDEX IF NOT EXISTS messages_state ON messages(state, direction);
+-- Trace des explications déjà envoyées, pour n'en envoyer qu'une par jour et
+-- par personne : une boîte qui répond en boucle est une boîte qu'on débranche.
+CREATE TABLE IF NOT EXISTS hints (
+    address TEXT NOT NULL,
+    day     TEXT NOT NULL,
+    PRIMARY KEY (address, day)
+);
 CREATE UNIQUE INDEX IF NOT EXISTS messages_external
     ON messages(source, external_id) WHERE external_id IS NOT NULL;
 """
@@ -206,6 +213,18 @@ class Store:
         if start < end:
             return start <= now.hour < end
         return now.hour >= start or now.hour < end
+
+    def should_hint(self, address: str, now: datetime | None = None) -> bool:
+        """Faut-il expliquer la règle à cette personne ? Au plus une fois par jour."""
+        now = now or datetime.now()
+        try:
+            self.db.execute(
+                "INSERT INTO hints (address, day) VALUES (?, ?)",
+                (address.strip().lower(), now.date().isoformat()),
+            )
+        except sqlite3.IntegrityError:
+            return False
+        return True
 
     # --- purge ---------------------------------------------------------------
 

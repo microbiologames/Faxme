@@ -32,6 +32,13 @@ smtp_host = "smtp.gmail.com"
 # cette variable d'environnement.
 password_env = "FAXME_MAIL_PASSWORD"
 poll_seconds = 60
+# Le mot de passe de la porte, partagé avec les adultes du carnet et eux seuls.
+# L'objet du message doit le contenir — le reste de l'objet est libre, et
+# « Re: », « TR: », les minuscules et les accents ne gênent pas.
+subject_keyword = "RAPH.FAXME"
+# Répondre à quelqu'un du carnet qui a oublié le mot-clé (une fois par jour,
+# jamais à un inconnu).
+reply_hint = true
 # Ce qui vient d'un inconnu n'est jamais imprimé. Avec une adresse ici, c'est
 # réexpédié aux parents pour qu'ils jugent ; sans, c'est jeté.
 forward_unknown_to = "papa@example.com"
@@ -49,14 +56,12 @@ night_end_hour = 7
 name = "Mamie"          # le nom imprimé sur le ticket, jamais celui du message
 kind = "email"
 address = "mamie@example.com"
-alias = "mamie7fk3"     # écrire à raphael.faxme+mamie7fk3@gmail.com
 wheel = 2
 
 [[contacts]]
 name = "Papa"
 kind = "email"
 address = "papa@example.com"
-alias = "papa2xq9"
 wheel = 3
 
 # [[contacts]]
