@@ -143,12 +143,59 @@ class TicketConfig:
 
 
 @dataclass(frozen=True)
+class MailConfig:
+    """La passerelle e-mail (cf. CONCEPT.md §7).
+
+    Aucun mot de passe ici : ce fichier finit dans un dépôt git. Le mot de
+    passe d'application est lu dans une variable d'environnement.
+    """
+
+    address: str = ""  # l'adresse de la boîte, ex. raphael.faxme@gmail.com
+    imap_host: str = "imap.gmail.com"
+    imap_port: int = 993
+    smtp_host: str = "smtp.gmail.com"
+    smtp_port: int = 465
+    password_env: str = "FAXME_MAIL_PASSWORD"
+    poll_seconds: int = 60
+
+    # Un message d'un expéditeur inconnu n'est jamais imprimé. S'il y a une
+    # adresse ici, il y est réexpédié pour que les parents jugent ; sinon il
+    # est simplement jeté.
+    forward_unknown_to: str = ""
+
+    max_pages: int = 3
+    max_attachment_mb: int = 20
+
+    # Police manuscrite pour le texte tapé au clavier, pour que ça reste une
+    # lettre et pas un ticket de caisse. À défaut, on retombe sur une serif.
+    handwriting_font: str = ""
+
+    # Ne jamais mettre à False sans savoir : sans vérification, le champ From
+    # d'un e-mail se falsifie en trois secondes et n'importe qui peut faire
+    # imprimer ce qu'il veut chez un enfant (CONCEPT.md §7.3).
+    require_authentication: bool = True
+
+
+@dataclass(frozen=True)
+class QuotaConfig:
+    """Quota d'envoi et mode nuit (cf. CONCEPT.md §8)."""
+
+    daily_letters: int = 5
+    reset_hour: int = 4
+    night_start_hour: int = 20
+    night_end_hour: int = 7
+
+
+@dataclass(frozen=True)
 class Config:
     printer: PrinterConfig = field(default_factory=PrinterConfig)
     card: CardConfig = field(default_factory=CardConfig)
     capture: CaptureConfig = field(default_factory=CaptureConfig)
     pipeline: PipelineConfig = field(default_factory=PipelineConfig)
     ticket: TicketConfig = field(default_factory=TicketConfig)
+    mail: MailConfig = field(default_factory=MailConfig)
+    quota: QuotaConfig = field(default_factory=QuotaConfig)
+    contacts: tuple = ()
 
     @classmethod
     def load(cls, path: str | Path | None) -> "Config":
@@ -162,6 +209,8 @@ class Config:
             "capture": CaptureConfig,
             "pipeline": PipelineConfig,
             "ticket": TicketConfig,
+            "mail": MailConfig,
+            "quota": QuotaConfig,
         }
         kwargs = {}
         for name, klass in sections.items():
@@ -176,6 +225,11 @@ class Config:
             if "resolution" in values:
                 values["resolution"] = tuple(values["resolution"])
             kwargs[name] = klass(**values)
+        from .contacts import Contact
+
+        kwargs["contacts"] = tuple(
+            Contact.from_dict(entry) for entry in raw.get("contacts", [])
+        )
         return cls(**kwargs)
 
     def as_dict(self) -> dict:

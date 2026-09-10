@@ -499,8 +499,10 @@ cette propriété si on n'y prend pas garde. Quatre règles, toutes obligatoires
    pas imprimé, pas signalé, pas mis en attente : il est jeté. Au besoin réexpédié à
    l'adresse des parents, jamais au papier.
 2. **Une adresse par adulte**, sous forme de sous-adresse : `raphael+mamie7fk3@…`.
-   L'alias joue le rôle de secret partagé ; le connaître fait partie de
-   l'authentification.
+   Attention à ne pas s'illusionner : sur Gmail, quiconque connaît l'adresse de
+   base peut y accoler le suffixe de son choix. **L'alias identifie, il
+   n'authentifie pas.** Il sert à savoir de quel correspondant il s'agit, et à
+   repérer une adresse qui aurait fuité — pas à donner un droit.
 3. **Vérifier l'authentification du message.** Le champ `From:` d'un e-mail se falsifie
    en trois secondes. On lit l'en-tête `Authentication-Results` ajouté par le
    fournisseur et on n'accepte que si SPF et DKIM passent. Sans cette vérification,
@@ -567,10 +569,18 @@ métadonnées, quel que soit le tuyau. Le code ne diffère qu'au dernier moment.
 
 ### 7.8 Ce qu'il faut choisir
 
-- **Un fournisseur avec IMAP et sous-adressage.** Fastmail le fait nativement ;
-  Gmail aussi, au prix d'un mot de passe d'application ou d'OAuth.
-- **Une adresse dédiée par boîte**, qui ne sert qu'à ça et qui n'est jamais publiée
-  ailleurs que dans la liste blanche.
+**Retenu : un compte Gmail dédié**, parce que la condition est que ce soit gratuit à
+l'usage. IMAP, sous-adressage et mot de passe d'application, sans abonnement. Fastmail
+serait plus propre mais il est payant.
+
+- **Une adresse dédiée par boîte**, qui ne sert qu'à ça et n'est jamais publiée ailleurs
+  que dans le carnet.
+- **Le mot de passe d'application n'est jamais dans le fichier de configuration** — qui
+  finit dans un dépôt git — mais dans une variable d'environnement.
+- Point de fragilité à connaître : les mots de passe d'application dépendent du bon
+  vouloir de Google. Le jour où ils disparaissent, il faudra passer à OAuth2 ou changer
+  de fournisseur ; c'est pourquoi le transport est isolé dans une classe d'une trentaine
+  de lignes (`Gateway`), et pas répandu dans tout le code.
 
 ## 8. Garde-fous
 
@@ -771,10 +781,11 @@ même temps.
   à taille réelle, pilote ESC/POS, boucle bouton du Pi. Aucun réseau. Ce qui reste est
   la validation avec du vrai papier : un wattmètre sur la prise pour trancher §10.7, et
   un relevé de température après une heure boîtier fermé.
-- **Phase 1 — La passerelle e-mail** *(une boîte devient utile)*. Relève IMAP, liste
-  blanche et vérification SPF/DKIM, impression des photos et du texte, envoi SMTP vers
-  les adultes, suppression après impression. Utilisable dès le premier week-end : papa
-  en déplacement écrit, la boîte sonne à la maison.
+- **Phase 1 — La passerelle e-mail** *(une boîte devient utile)*. ✅ *Logiciel écrit*
+  (mode d'emploi dans `docs/PHASE1.md`) : carnet fermé, relève IMAP, vérification
+  SPF/DKIM, photos et PDF de scanner de téléphone, texte tapé rendu en manuscrite,
+  envoi SMTP, magasin SQLite avec quota, mode nuit et purge après impression, service
+  Pi à deux boutons. Ce qui reste : créer le compte Gmail et le brancher.
 - **Phase 2 — Deux boîtes sur le même réseau.** Envoi/réception HTTP en LAN, file
   persistante, idempotence, purge après impression. On les met dans deux pièces de la
   maison : c'est déjà un jouet formidable, et le meilleur banc de test.

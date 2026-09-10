@@ -15,10 +15,15 @@ from pathlib import Path
 
 from PIL import Image
 
-from . import cards, escpos, pipeline, simulate, ticket
+import os
+
+from . import cards, escpos, pipeline, service, simulate, ticket
 from .capture import open_source
 from .config import Config
+from .contacts import AddressBook
 from .imaging import EmptyCard
+from .mailbox import Gateway
+from .store import Store
 
 
 def _load_config(args) -> Config:
@@ -161,11 +166,125 @@ def cmd_calibrer(args) -> int:
     return 0
 
 
+def cmd_boite(args) -> int:
+    """Phase 1 sur le Pi : relève e-mail en tâche de fond + deux boutons."""
+    from .box import run
+
+    config = _load_config(args)
+    gateway_password = os.environ.get(config.mail.password_env, "")
+    if not gateway_password:
+        raise SystemExit(f"exporte {config.mail.password_env} avant de démarrer")
+    return run(
+        config,
+        data_dir=args.donnees,
+        device=args.peripherique,
+        password=gateway_password,
+        send_pin=args.bouton_envoi,
+        print_pin=args.bouton_impression,
+        mail_pin=args.voyant_courrier,
+        error_pin=args.voyant_erreur,
+        default_contact=args.a,
+    )
+
+
 def cmd_boucle(args) -> int:
     """Phase 0 sur le Pi : bouton → caméra → pipeline → imprimante."""
     from .loopback import run
 
     return run(_load_config(args), device=args.peripherique, button_pin=args.bouton)
+
+
+# --- passerelle e-mail -------------------------------------------------------
+
+
+def _open_gateway(config: Config) -> Gateway:
+    """Le mot de passe vient de l'environnement, jamais du fichier de config."""
+    password = os.environ.get(config.mail.password_env, "")
+    if not config.mail.address:
+        raise SystemExit("aucune adresse configurée : renseigne [mail] address dans le TOML")
+    if not password:
+        raise SystemExit(
+            f"mot de passe absent : exporte {config.mail.password_env} "
+            "(mot de passe d'application Gmail, pas le mot de passe du compte)"
+        )
+    return Gateway(config, password)
+
+
+def _open_store(args, config: Config) -> Store:
+    return Store(args.donnees, config)
+
+
+def cmd_relever(args) -> int:
+    config = _load_config(args)
+    store = _open_store(args, config)
+    report = service.collect(store, config, _open_gateway(config))
+    print(report)
+    for reason in report.rejected:
+        print(f"  refusé : {reason}")
+    for name in report.accepted:
+        print(f"  reçu de {name}")
+    print(f"  en attente d'impression : {len(store.pending())}")
+    return 0
+
+
+def cmd_etat(args) -> int:
+    config = _load_config(args)
+    store = _open_store(args, config)
+    waiting = store.pending()
+    print(f"  courrier en attente : {len(waiting)}")
+    for message in waiting:
+        quand = message.created_at.strftime("%d/%m %Hh%M")
+        print(f"    - de {message.contact}, {quand}, {message.pages} page(s)")
+    print(f"  lettres restantes aujourd'hui : {store.credits_left()}"
+          f" / {config.quota.daily_letters}")
+    print(f"  mode nuit : {'oui' if store.is_night() else 'non'}")
+    book = AddressBook(config.contacts)
+    print(f"  carnet : {len(book)} contact(s)")
+    for contact in book:
+        roue = f", roue {contact.wheel}" if contact.wheel else ""
+        print(f"    - {contact.name} ({contact.kind}) {contact.address}{roue}")
+    return 0
+
+
+def cmd_imprimer_attente(args) -> int:
+    config = _load_config(args)
+    store = _open_store(args, config)
+    try:
+        message = service.print_next(store, config, args.peripherique)
+    except service.Sleeping as raison:
+        print(raison)
+        return 0
+    if message is None:
+        print("aucune lettre en attente")
+        return 0
+    print(f"imprimée : lettre de {message.contact}")
+    print(f"  reste en attente : {len(store.pending())}")
+    return 0
+
+
+def cmd_envoyer(args) -> int:
+    config = _load_config(args)
+    store = _open_store(args, config)
+    book = AddressBook(config.contacts)
+    contact = book.by_name(args.a) or book.by_address(args.a)
+    if contact is None:
+        raise SystemExit(f"contact inconnu dans le carnet : {args.a}")
+
+    photo = open_source(args.photo, config).grab()
+    try:
+        result = pipeline.process(photo, config)
+    except EmptyCard as error:
+        print(f"fiche refusée : {error}", file=sys.stderr)
+        return 2
+    full = ticket.render(result.ink, config, when=datetime.now())
+    try:
+        service.send_letter(store, config, _open_gateway(config), contact, full)
+    except (service.QuotaExhausted, service.Sleeping) as raison:
+        print(raison, file=sys.stderr)
+        return 3
+    print(f"lettre envoyée à {contact.name} ({contact.address})")
+    print(f"  lettres restantes aujourd'hui : {store.credits_left()}")
+    return 0
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -214,7 +333,40 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("-o", "--sortie", default="sortie/calibration.png")
     p.set_defaults(func=cmd_calibrer)
 
-    p = sub.add_parser("boucle", help="sur le Pi : bouton → scan → impression")
+    p = sub.add_parser("relever", help="relève la boîte e-mail et met en attente")
+    p.add_argument("-d", "--donnees", default="var", help="répertoire d'état")
+    p.set_defaults(func=cmd_relever)
+
+    p = sub.add_parser("etat", help="courrier en attente, crédits, carnet")
+    p.add_argument("-d", "--donnees", default="var")
+    p.set_defaults(func=cmd_etat)
+
+    p = sub.add_parser("imprimer-attente", help="imprime la lettre reçue la plus ancienne")
+    p.add_argument("-d", "--donnees", default="var")
+    p.add_argument("-p", "--peripherique", default="/dev/usb/lp0")
+    p.set_defaults(func=cmd_imprimer_attente)
+
+    p = sub.add_parser("envoyer", help="scanne une fiche et l'envoie à un contact")
+    p.add_argument("photo")
+    p.add_argument("--a", required=True, help="nom ou adresse du destinataire")
+    p.add_argument("-d", "--donnees", default="var")
+    p.add_argument("--expediteur")
+    p.add_argument("--cadrage", choices=("trim", "card", "ink"))
+    p.set_defaults(func=cmd_envoyer)
+
+    p = sub.add_parser("boite", help="sur le Pi : service complet (e-mail + boutons)")
+    p.add_argument("-d", "--donnees", default="var")
+    p.add_argument("-p", "--peripherique", default="/dev/usb/lp0")
+    p.add_argument("--bouton-envoi", type=int, default=17)
+    p.add_argument("--bouton-impression", type=int, default=27)
+    p.add_argument("--voyant-courrier", type=int, default=0)
+    p.add_argument("--voyant-erreur", type=int, default=0)
+    p.add_argument("--a", help="destinataire par défaut (la roue arrive en phase 4)")
+    p.add_argument("--expediteur")
+    p.add_argument("--cadrage", choices=("trim", "card", "ink"))
+    p.set_defaults(func=cmd_boite)
+
+    p = sub.add_parser("boucle", help="sur le Pi : bouton → scan → impression, sans réseau")
     p.add_argument("-p", "--peripherique", default="/dev/usb/lp0")
     p.add_argument("--bouton", type=int, default=17, help="broche GPIO du bouton")
     p.add_argument("--expediteur")

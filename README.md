@@ -13,9 +13,11 @@ une fois imprimée, la lettre n'existe plus que sur le ticket.
 
 ## État
 
-**Phase 0 — la boucle locale.** Le traitement d'image, la génération des fiches,
-l'aperçu à taille réelle, le pilote d'imprimante thermique et la boucle bouton du
-Raspberry Pi sont écrits et testés. Rien n'est encore mis en réseau.
+**Phases 0 et 1 écrites.** Le traitement d'image (écriture et dessins), les fiches,
+le pilote d'imprimante thermique, et la **passerelle e-mail** qui permet aux adultes
+sans boîte — grands-parents, parent en déplacement — d'écrire depuis leur téléphone et
+de recevoir les lettres de l'enfant. Une seule boîte est donc déjà utile. Le lien
+direct entre deux boîtes arrive en phase 2.
 
 ```bash
 pip install -e .
@@ -32,5 +34,7 @@ physique réelle, à juger avant d'acheter quoi que ce soit.
 - **[CONCEPT.md](CONCEPT.md)** — le projet : principes, arbitrages techniques et leurs
   raisons, protocole réseau, tableau de bord lumineux, matériel, budget, feuille de
   route, modes de panne.
-- **[docs/PHASE0.md](docs/PHASE0.md)** — le mode d'emploi de ce qui est écrit, et le
-  protocole d'essai avec du vrai papier.
+- **[docs/PHASE0.md](docs/PHASE0.md)** — de la fiche au ticket : les fiches à imprimer,
+  le rendu, et le protocole d'essai avec du vrai papier.
+- **[docs/PHASE1.md](docs/PHASE1.md)** — la passerelle e-mail : la boîte Gmail, le
+  carnet fermé, ce qu'on dit aux grands-parents, le service du Pi.

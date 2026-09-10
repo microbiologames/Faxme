@@ -22,3 +22,45 @@ sender = "Nino"
 
 # [printer]
 # dots_per_line = 576  # 384 pour une 58 mm
+
+# --- passerelle e-mail (phase 1) ---------------------------------------------
+[mail]
+address = "raphael.faxme@gmail.com"
+imap_host = "imap.gmail.com"
+smtp_host = "smtp.gmail.com"
+# Le mot de passe d'application n'est JAMAIS dans ce fichier : il est lu dans
+# cette variable d'environnement.
+password_env = "FAXME_MAIL_PASSWORD"
+poll_seconds = 60
+# Ce qui vient d'un inconnu n'est jamais imprimé. Avec une adresse ici, c'est
+# réexpédié aux parents pour qu'ils jugent ; sans, c'est jeté.
+forward_unknown_to = "papa@example.com"
+max_pages = 3
+
+[quota]
+daily_letters = 5
+reset_hour = 4
+night_start_hour = 20
+night_end_hour = 7
+
+# --- le carnet, écrit par les parents et par eux seuls ------------------------
+# Rien de ce qui n'est pas ici ne peut atteindre le papier.
+[[contacts]]
+name = "Mamie"          # le nom imprimé sur le ticket, jamais celui du message
+kind = "email"
+address = "mamie@example.com"
+alias = "mamie7fk3"     # écrire à raphael.faxme+mamie7fk3@gmail.com
+wheel = 2
+
+[[contacts]]
+name = "Papa"
+kind = "email"
+address = "papa@example.com"
+alias = "papa2xq9"
+wheel = 3
+
+# [[contacts]]
+# name = "Léo"          # une autre boîte : arrive en phase 2
+# kind = "box"
+# address = "leo-boite.tailnet"
+# wheel = 1
