@@ -29,19 +29,33 @@ quelques secondes d'installation au lieu de quelques centaines de mégaoctets.
 
 ## 1. Imprimer les fiches
 
+Deux papiers, pour deux usages :
+
 ```bash
-faxme fiches -o sortie/fiches-a6.pdf
+faxme fiches -o sortie/fiches-a6.pdf              # fiches réglées, pour écrire
+faxme fiches --vierges -o sortie/fiches-blanches.pdf   # feuilles blanches, pour dessiner
 ```
 
-Quatre fiches A6 sur une A4, à découper en quatre. **À imprimer en couleur, à 100 %.**
+Quatre fiches A6 sur une A4, à découper en quatre, à imprimer à 100 %. Les fiches
+réglées, **en couleur**.
 
 La réglure, le cadre et la mention « POUR » sont dans un orange dont la composante
-rouge est saturée. Le pipeline ne lisant que le canal rouge, ces repères sont
-strictement invisibles à la numérisation : l'enfant est guidé, le destinataire ne
-reçoit que l'écriture.
+rouge est saturée. Sur ces fiches, le pipeline ne lit que le canal rouge : les repères
+y sont strictement invisibles. L'enfant est guidé, le destinataire ne reçoit que
+l'écriture.
 
-> **Le feutre doit être noir ou bleu foncé.** Un feutre rouge ou orange disparaîtrait
-> exactement comme la réglure. C'est aussi pour ça qu'on fournit le stylo.
+**La boîte reconnaît le papier toute seule**, à la bande orange imprimée en haut des
+fiches réglées. Sans bande, elle lit la photo en luminance et garde donc toutes les
+couleurs du crayon : c'est le mode des dessins. Il n'y a rien à choisir, et c'est
+voulu — sans écran ni bouton libre, un mode que l'enfant devrait sélectionner est un
+mode qu'on ne peut pas avoir.
+
+> **Le feutre doit être noir ou bleu foncé sur les fiches réglées.** Un feutre rouge
+> ou orange y disparaîtrait exactement comme la réglure. Sur feuille blanche, toutes
+> les couleurs passent. C'est aussi pour ça qu'on fournit le stylo.
+
+> **Ne rien écrire dans la bande orange du haut** : c'est elle que la boîte lit pour
+> reconnaître la fiche.
 
 ## 2. Rendre un ticket
 
@@ -69,6 +83,8 @@ que la thermique produira, à la texture du papier près.
 ## 3. Lire les mesures
 
 ```
+  lecture         : canal rouge (fiche réglée)
+  rendu           : trait franc
   redressement    : -2.0°
   taille ticket   : 72.1 × 35.2 mm
   couverture      : 6.4 % du ticket
@@ -89,6 +105,10 @@ d'un journal fait 1,5 mm — mais la finesse du trait :
 Si le trait est trop fin, le pipeline l'épaissit tout seul jusqu'à 3 points — mais
 c'est un rattrapage, pas une solution : mieux vaut changer de feutre.
 
+Sur un **dessin**, cette mesure ne veut rien dire et le rapport le signale : le rendu
+passe en tramage, et ce qu'on juge alors c'est si les contours restent nets et si les
+aplats gardent leur matière. Un peu de grain est normal, et même souhaitable.
+
 ## 4. Sans photo sous la main
 
 Un simulateur fabrique une fausse fiche manuscrite, avec réglure orange, éclairage
@@ -102,6 +122,15 @@ faxme -c exemple-boite.toml rendre sortie/photo.png -o sortie --etapes
 `--hauteur` est la hauteur des minuscules en mm (3 mm ≈ Seyès de CE1), `--feutre` la
 largeur du trait. C'est ce qui permet d'explorer les cas limites sans faire écrire
 personne : essaie `--hauteur 1.5 --feutre 0.2` pour voir un enfant qui écrit trop petit.
+
+Et pour le second papier :
+
+```bash
+faxme simuler --dessin -o sortie/dessin.png
+```
+
+Un dessin d'enfant sur feuille blanche, avec des aplats coloriés. Le rapport doit
+afficher `lecture : luminance` et `rendu : tramage`, sans qu'on ait rien demandé.
 
 ## 5. Le protocole d'essai, avec du vrai papier
 

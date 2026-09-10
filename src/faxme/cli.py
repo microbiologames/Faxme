@@ -32,11 +32,17 @@ def _load_config(args) -> Config:
 
 def _report(stats: dict, config: Config) -> None:
     dots = stats["stroke_dots"]
+    lecture = "canal rouge (fiche réglée)" if stats["channel"] == "red" else "luminance (feuille blanche)"
+    rendu = "tramage (dessin colorié)" if stats["mode"] == "dessin" else "trait franc"
+    print(f"  lecture         : {lecture}")
+    print(f"  rendu           : {rendu}")
     print(f"  redressement    : {stats['angle_deg']:+.1f}°")
     print(f"  taille ticket   : {stats['width_mm']} × {stats['length_mm']} mm")
     print(f"  couverture      : {stats['ink_ratio'] * 100:.1f} % du ticket")
     print(f"  épaisseur trait : {dots:.0f} points ({stats['stroke_mm']} mm)")
-    if dots < 2:
+    if stats["mode"] == "dessin":
+        print("  (l'épaisseur de trait ne veut pas dire grand-chose sur un dessin tramé.)")
+    elif dots < 2:
         print("  ⚠  moins de 2 points : le trait va se casser à l'impression.")
         print("     Écrire plus gros, ou prendre un feutre à pointe plus large.")
     elif dots > 6:
@@ -77,14 +83,17 @@ def cmd_rendre(args) -> int:
 
 def cmd_simuler(args) -> int:
     config = Config.load(args.config)
-    photo = simulate.fake_photo(
-        config,
-        x_height_mm=args.hauteur,
-        pen_mm=args.feutre,
-        angle_deg=args.angle,
-        seed=args.graine,
-        text=args.texte.split("|") if args.texte else None,
-    )
+    if args.dessin:
+        photo = simulate.fake_drawing(config, seed=args.graine, angle_deg=args.angle)
+    else:
+        photo = simulate.fake_photo(
+            config,
+            x_height_mm=args.hauteur,
+            pen_mm=args.feutre,
+            angle_deg=args.angle,
+            seed=args.graine,
+            text=args.texte.split("|") if args.texte else None,
+        )
     Path(args.sortie).parent.mkdir(parents=True, exist_ok=True)
     photo.save(args.sortie)
     crop = simulate.crop_for(config, args.angle)
@@ -96,12 +105,15 @@ def cmd_simuler(args) -> int:
 
 def cmd_fiches(args) -> int:
     config = Config.load(args.config)
-    page = cards.sheet(config, dpi=args.dpi)
+    page = cards.sheet(config, dpi=args.dpi, blank=args.vierges)
     out = Path(args.sortie)
     out.parent.mkdir(parents=True, exist_ok=True)
     page.save(out, resolution=float(args.dpi))
     print(f"planche de 4 fiches A6 : {out}")
-    print("imprimer à 100 %, en couleur, puis couper en quatre.")
+    if args.vierges:
+        print("imprimer à 100 %, puis couper en quatre.")
+    else:
+        print("imprimer à 100 %, EN COULEUR, puis couper en quatre.")
     return 0
 
 
@@ -178,11 +190,15 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--angle", type=float, default=1.8)
     p.add_argument("--graine", type=int, default=7)
     p.add_argument("--texte", help="lignes séparées par des barres verticales")
+    p.add_argument("--dessin", action="store_true",
+                   help="un dessin d'enfant sur feuille blanche au lieu d'une lettre")
     p.set_defaults(func=cmd_simuler)
 
     p = sub.add_parser("fiches", help="planche de fiches A6 à imprimer")
     p.add_argument("-o", "--sortie", default="sortie/fiches-a6.pdf")
     p.add_argument("--dpi", type=int, default=300)
+    p.add_argument("--vierges", action="store_true",
+                   help="fiches blanches pour les dessins, sans rien d'imprimé")
     p.set_defaults(func=cmd_fiches)
 
     p = sub.add_parser("imprimer", help="photo de fiche → imprimante thermique")

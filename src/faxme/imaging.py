@@ -37,6 +37,25 @@ def orient_and_crop(photo: Image.Image, config: Config) -> Image.Image:
     return photo.crop(box)
 
 
+def has_guide_band(card: Image.Image, config: Config, band_mm: float = 6.0) -> bool:
+    """Repère la bande orange imprimée en haut des fiches réglées.
+
+    Une bande pleine largeur, unie et franchement orange est une signature que
+    ni une feuille blanche ni un dessin d'enfant ne produisent par accident :
+    on exige à la fois beaucoup de rouge par rapport au vert, et très peu de
+    variation le long de la bande.
+    """
+    width, height = card.size
+    band_px = max(4, int(round(height * band_mm / config.card.height_mm)))
+    band = np.asarray(card.convert("RGB").crop((0, 0, width, band_px)), dtype=np.int16)
+    red_minus_green = band[:, :, 0] - band[:, :, 1]
+    return bool(
+        red_minus_green.mean() > 25
+        and red_minus_green.std() < 25
+        and band[:, :, 0].mean() > 180
+    )
+
+
 def to_working_gray(card: Image.Image, config: Config) -> np.ndarray:
     """Ramène la fiche à la résolution de travail, en niveaux de gris 0..1.
 
@@ -44,13 +63,16 @@ def to_working_gray(card: Image.Image, config: Config) -> np.ndarray:
     un Pi : on n'a jamais besoin de plus de trois fois la résolution finale.
     """
     channel = config.capture.gray_channel
+    if channel == "auto":
+        channel = "red" if has_guide_band(card, config) else "luma"
     if channel == "red":
         card = card.convert("RGB").getchannel("R")
     elif channel == "luma":
         card = card.convert("L")
     else:
         raise ValueError(
-            f"capture.gray_channel doit valoir 'red' ou 'luma', pas {channel!r}"
+            "capture.gray_channel doit valoir 'auto', 'red' ou 'luma', pas "
+            f"{channel!r}"
         )
     width = config.working_width
     height = max(1, round(width * card.size[1] / card.size[0]))
@@ -126,6 +148,29 @@ def sauvola(gray: np.ndarray, window_px: int, k: float) -> np.ndarray:
     # R = dynamique maximale de l'écart-type ; 0.5 pour des valeurs dans 0..1.
     threshold = mean * (1.0 + k * (std / 0.5 - 1.0))
     return gray < threshold
+
+
+def resize_gray(gray: np.ndarray, target_width: int) -> np.ndarray:
+    """Réduit une image en niveaux de gris à la largeur du ticket."""
+    height, width = gray.shape
+    if width == target_width:
+        return gray
+    target_height = max(1, round(height * target_width / width))
+    image = Image.fromarray((np.clip(gray, 0, 1) * 255).astype(np.uint8))
+    resized = image.resize((target_width, target_height), Image.Resampling.LANCZOS)
+    return np.asarray(resized, dtype=np.float32) / 255.0
+
+
+def clear_border_gray(gray: np.ndarray, border_px: int) -> np.ndarray:
+    """Blanchit une bande sur le pourtour d'une image en niveaux de gris."""
+    if border_px <= 0:
+        return gray
+    cleaned = gray.copy()
+    cleaned[:border_px, :] = 1.0
+    cleaned[-border_px:, :] = 1.0
+    cleaned[:, :border_px] = 1.0
+    cleaned[:, -border_px:] = 1.0
+    return cleaned
 
 
 def clear_border(ink: np.ndarray, border_px: int) -> np.ndarray:
@@ -243,6 +288,42 @@ def thicken_thin_strokes(ink: np.ndarray, min_dots: int, max_passes: int = 2) ->
             break
         ink = dilate(ink, 1)
     return ink
+
+
+# --- dessins ---
+
+
+def mid_tone_ratio(gray: np.ndarray, low: float = 0.25, high: float = 0.80) -> float:
+    """Part de l'image en gris moyen : la signature d'un aplat colorié.
+
+    De l'écriture au feutre ne produit que du noir et du blanc, avec une frange
+    de gris sur les bords des traits. Un ciel colorié au crayon, lui, est
+    presque entièrement dans cette bande.
+    """
+    return float(((gray > low) & (gray < high)).mean())
+
+
+def dither(gray: np.ndarray, gamma: float = 0.72, solid_below: float = 0.35) -> np.ndarray:
+    """Tramage par diffusion d'erreur, pour les dessins coloriés.
+
+    Le tramage est exactement ce qu'il ne faut pas faire sur de l'écriture — il
+    transforme un trait en bouillie grise — et exactement ce qu'il faut sur des
+    aplats, qu'une binarisation franche réduirait à des taches. D'où le choix
+    par image plutôt qu'un réglage global.
+
+    Le gamma éclaircit avant tramage : une thermique surcharge, et un aplat
+    tramé à 50 % en ressort presque noir.
+
+    ``solid_below`` garde en noir plein ce qui est franchement sombre. Sans lui,
+    le tramage réduit aussi les contours du dessin à un semis de points : la
+    maison perd ses murs. On ne trame donc que les demi-teintes, et le trait de
+    crayon reste un trait.
+    """
+    gray = np.clip(gray, 0.0, 1.0)
+    lightened = gray**gamma
+    image = Image.fromarray((lightened * 255).astype(np.uint8), mode="L")
+    tramed = np.asarray(image.convert("1", dither=Image.Dither.FLOYDSTEINBERG)) == 0
+    return tramed | (gray < solid_below)
 
 
 # --- mesures -----------------------------------------------------------------

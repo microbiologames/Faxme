@@ -7,9 +7,10 @@
 # Viser l'INTÉRIEUR du papier, jamais son bord.
 crop = [0.1430, 0.1009, 0.8570, 0.8991]
 rotate_quarters = 0
-# "red" avec les fiches pré-imprimées en orange (voir faxme fiches),
-# "luma" avec du papier vierge.
-gray_channel = "red"
+# "auto" reconnaît la bande orange des fiches réglées et bascule tout seul :
+# canal rouge pour une fiche réglée (la réglure disparaît), luminance pour une
+# feuille blanche (les couleurs d'un dessin sont conservées).
+gray_channel = "auto"
 
 [ticket]
 sender = "Nino"

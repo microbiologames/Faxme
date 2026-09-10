@@ -56,14 +56,18 @@ class CaptureConfig:
     rotate_quarters: int = 0  # rotations de 90° appliquées avant le recadrage
     resolution: tuple[int, int] = (2304, 1296)
 
-    # "red"  : on ne garde que le canal rouge de la photo. Tout ce qui est
-    #          imprimé sur la fiche en orange clair (réglure, cadre, mentions)
-    #          y apparaît blanc et disparaît donc du ticket, alors que le
-    #          feutre noir ou bleu reste parfaitement noir. C'est ce qui permet
-    #          d'avoir des fiches guidées sans que les lignes soient envoyées.
-    #          Contrepartie : ne jamais écrire au feutre rouge ou orange.
-    # "luma" : conversion classique, à utiliser avec des fiches vierges.
-    gray_channel: str = "red"
+    # "auto" : décidé image par image, en regardant la bande orange imprimée en
+    #          haut des fiches réglées. Il n'y a pas d'écran ni de bouton libre
+    #          pour choisir un mode : la détection n'est pas un luxe, c'est la
+    #          seule façon d'accepter deux papiers différents.
+    # "red"  : on ne garde que le canal rouge. Tout ce qui est imprimé sur la
+    #          fiche en orange (réglure, cadre, mentions) y apparaît blanc et
+    #          disparaît donc du ticket, alors que le feutre noir ou bleu reste
+    #          noir. Réservé aux fiches réglées : sur un dessin en couleur, le
+    #          rouge et l'orange du crayon disparaîtraient aussi.
+    # "luma" : conversion classique. C'est le mode des feuilles blanches, donc
+    #          des dessins.
+    gray_channel: str = "auto"
 
 
 @dataclass(frozen=True)
@@ -106,6 +110,26 @@ class PipelineConfig:
 
     # En dessous, on considère que la fiche est vide et on refuse l'envoi.
     min_ink_ratio: float = 0.0005
+
+    # "auto"   : trait ou dessin, décidé en mesurant la surface de gris moyen.
+    # "trait"  : binarisation franche. C'est ce qu'il faut pour de l'écriture
+    #            et pour un dessin au trait.
+    # "dessin" : tramage. Indispensable dès qu'il y a des aplats coloriés, qu'une
+    #            binarisation transformerait en taches noires ou en blanc.
+    render_mode: str = "auto"
+
+    # Part de la fiche occupée par du gris moyen au-delà de laquelle on bascule
+    # en tramage. Un texte au feutre n'a presque que du noir et du blanc ; un
+    # ciel colorié au crayon, beaucoup de gris.
+    mid_tone_ratio: float = 0.06
+
+    # Le thermique surcharge : on éclaircit avant de tramer, sinon les aplats
+    # ressortent en pâté noir.
+    dither_gamma: float = 0.72
+
+    # En dessous de ce niveau de gris, on imprime en noir plein au lieu de
+    # tramer : c'est ce qui garde les contours d'un dessin nets.
+    dither_solid_below: float = 0.35
 
 
 @dataclass(frozen=True)

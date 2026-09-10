@@ -5,6 +5,7 @@ import pytest
 from dataclasses import replace
 
 from faxme import pipeline, simulate, ticket
+from faxme.imaging import dither as imaging_dither
 from faxme.config import Config
 from faxme.imaging import EmptyCard
 
@@ -113,3 +114,40 @@ def test_unknown_fit_is_refused():
     config = make_config(fit="plein")
     with pytest.raises(ValueError, match="fit"):
         pipeline.process(simulate.fake_photo(config), config)
+
+
+def test_a_drawing_switches_to_dithering_on_its_own():
+    """Aucun bouton pour choisir : la bascule doit se faire à la mesure."""
+    config = make_config()
+    drawing = pipeline.process(simulate.fake_drawing(config), config)
+    assert drawing.stats["mode"] == "dessin"
+    # Feuille blanche : pas de bande orange, donc lecture en luminance, donc
+    # aucune couleur de crayon ne disparaît.
+    assert drawing.stats["channel"] == "luma"
+    # Les aplats coloriés se traduisent en trame, pas en taches.
+    assert 0.03 < drawing.stats["ink_ratio"] < 0.45
+
+
+def test_a_letter_stays_in_line_art_mode():
+    config = make_config()
+    letter = pipeline.process(simulate.fake_photo(config), config)
+    assert letter.stats["mode"] == "trait"
+    assert letter.stats["channel"] == "red"  # la bande orange est reconnue
+
+
+def test_drawing_outlines_stay_solid():
+    """Le tramage ne doit pas réduire les contours à un semis de points."""
+    gray = np.ones((200, 200), dtype=np.float32) * 0.55  # un aplat moyen
+    gray[80:88, 20:180] = 0.12  # un trait de crayon appuyé
+    ink = imaging_dither(gray)
+    assert ink[80:88, 20:180].all()  # le trait est plein
+    assert 0.1 < ink[:60].mean() < 0.9  # l'aplat, lui, est bien tramé
+
+
+def test_blank_paper_is_read_in_luminance():
+    from faxme import cards
+    from faxme.imaging import has_guide_band
+
+    config = make_config()
+    assert has_guide_band(cards.card(config, dpi=150), config)
+    assert not has_guide_band(cards.blank_card(config, dpi=150), config)

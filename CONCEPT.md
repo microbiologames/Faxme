@@ -36,7 +36,7 @@ arbitrage est douteux, c'est eux qui décident.
 6. **L'attente fait partie du plaisir.** On ne cherche pas l'instantané. Le rituel
    (écrire, glisser, attendre, aller relever le courrier) est la valeur du produit.
 7. **Un objet posé chez quelqu'un d'autre doit se dépanner sans nous.** Tout ce qui
-   oblige à traverser la ville tuera le projet en trois semaines (§10).
+   oblige à traverser la ville tuera le projet en trois semaines (§11).
 
 ## 3. Le parcours de l'enfant
 
@@ -87,7 +87,8 @@ D'où trois décisions liées, qui sont du design produit autant que de la techn
   crayon à papier (gris, il scanne mal et disparaît à la binarisation), jamais de
   stylo bille clair. Le « feutre officiel du fax » attaché à la boîte par une
   ficelle : c'est un objet désirable pour un enfant *et* la garantie du contraste.
-- **Les fiches sont pré-imprimées** avec un interligne large (~8 mm). La fiche
+- **Les fiches réglées sont pré-imprimées** avec un interligne large (~8 mm) — il
+  existe aussi un papier blanc pour les dessins (§4.6). La fiche
   enseigne le format : écrire gros n'est pas une consigne à répéter, c'est une
   contrainte du papier. Toute cette réglure est imprimée **en orange clair à rouge
   saturé**, et le pipeline ne lit que le canal rouge de la photo : les lignes y
@@ -329,6 +330,39 @@ Détail à ne pas oublier côté logiciel : le destinataire est figé **au momen
 sur ENVOYER. Tourner la roue pendant qu'une lettre part ne change rien à sa destination,
 et met simplement à jour le voyant « il a lu ta lettre » pour le nouveau copain choisi.
 
+### 4.6 Les dessins, et le deuxième papier
+
+Un enfant de 7 ans écrit peu et dessine beaucoup. Un dessin n'est pas une lettre avec
+des images : c'est un autre problème de rendu.
+
+- **Une lettre** n'a que du noir et du blanc. Une binarisation franche est le bon
+  traitement, et le tramage y ferait de la bouillie.
+- **Un dessin colorié** a des aplats. Une binarisation franche les réduit à des taches
+  noires ou les efface ; c'est là, et seulement là, que le tramage est le bon outil.
+
+D'où **deux papiers et deux traitements** — mais aucun bouton pour choisir, parce qu'il
+n'y a ni écran ni bouton libre pour ça. Tout se décide à la lecture de l'image :
+
+| Papier | Reconnu à | Lecture | Rendu |
+|---|---|---|---|
+| Fiche réglée | sa bande orange en haut | canal rouge : la réglure disparaît | trait franc |
+| Feuille blanche | l'absence de bande | luminance : toutes les couleurs comptent | tramage si aplats, trait sinon |
+
+La bascule vers le tramage se fait en mesurant la surface de gris moyen : de l'écriture
+au feutre n'en a presque pas, un ciel colorié en est presque entièrement fait.
+
+Deux détails qui font la différence à l'impression :
+
+- **Le noir franc reste noir.** On ne trame que les demi-teintes ; en dessous d'un
+  certain gris, on imprime plein. Sans cette règle, le tramage réduit aussi les
+  contours du dessin à un semis de points et la maison perd ses murs.
+- **On éclaircit avant de tramer.** Une thermique surcharge : un aplat tramé à 50 %
+  ressort presque noir. Un gamma de 0,72 remet les gris à leur place.
+
+Et le grain assumé : un dessin d'enfant passé à la caméra puis à la thermique n'est pas
+une reproduction fidèle, c'est une gravure. C'est très bien ainsi — c'est même une
+partie du charme de l'objet, au même titre que le bruit d'un vieux fax.
+
 ## 5. Architecture logicielle
 
 ```
@@ -424,9 +458,123 @@ n'est pas vrai.
 
 Purge au démarrage aussi : un redémarrage ne doit pas ressusciter d'anciens fichiers.
 
-## 7. Garde-fous
+## 7. Les adultes sans boîte : la passerelle e-mail
 
-### 7.1 Quota
+Une boîte ne sert à rien tant qu'il n'y en a pas deux — sauf si l'autre bout peut être
+un adulte avec un téléphone. C'est ce que change cette passerelle, et elle change plus
+que le confort : **elle rend une seule boîte utile**, donc elle permet de commencer
+sans attendre l'accord d'une autre famille, et de découvrir si le rituel prend avant
+d'installer du matériel chez quelqu'un.
+
+Deux cas d'usage réels : le parent en déplacement long, et les grands-parents chez qui
+on ne veut pas gérer une installation.
+
+### 7.1 Il n'y a pas d'application à écrire
+
+**L'application, c'est l'appareil photo et la messagerie du téléphone.** Rien à
+installer, rien à maintenir, rien à publier sur un magasin, et surtout : ça marche pour
+des grands-parents qui n'installeront jamais rien.
+
+Mieux : on demande à l'adulte d'utiliser le **mode « numériser un document »** déjà
+présent dans son téléphone (Notes ou Fichiers sur iPhone, Google Drive sur Android).
+Il redresse la perspective tout seul. C'est la seule partie difficile du traitement
+d'une photo prise à main levée, et elle est déjà écrite, gratuitement, par Apple et
+Google. On ne la réécrira pas.
+
+Une application maison pourrait venir plus tard pour le confort. Elle n'apporterait
+aucune fonction nouvelle.
+
+### 7.2 La passerelle tourne sur la boîte, pas sur un serveur
+
+Le Pi relève une boîte aux lettres en IMAP toutes les minutes et envoie en SMTP. Pas
+de serveur, pas d'hébergement, pas d'abonnement — la même logique que le choix de
+Tailscale (§4.3). La boîte est allumée en permanence de toute façon (§10).
+
+### 7.3 C'est la première ouverture du système : elle doit rester une meurtrière
+
+Jusqu'ici, rien de l'extérieur ne pouvait atteindre l'enfant. Une adresse e-mail casse
+cette propriété si on n'y prend pas garde. Quatre règles, toutes obligatoires :
+
+1. **Liste blanche stricte**, configurée par les parents. Un expéditeur inconnu n'est
+   pas imprimé, pas signalé, pas mis en attente : il est jeté. Au besoin réexpédié à
+   l'adresse des parents, jamais au papier.
+2. **Une adresse par adulte**, sous forme de sous-adresse : `raphael+mamie7fk3@…`.
+   L'alias joue le rôle de secret partagé ; le connaître fait partie de
+   l'authentification.
+3. **Vérifier l'authentification du message.** Le champ `From:` d'un e-mail se falsifie
+   en trois secondes. On lit l'en-tête `Authentication-Results` ajouté par le
+   fournisseur et on n'accepte que si SPF et DKIM passent. Sans cette vérification,
+   n'importe qui peut faire imprimer ce qu'il veut chez un enfant de 7 ans en écrivant
+   « de la part de Mamie ».
+4. **Le nom imprimé vient de la liste blanche, jamais du message.** Le ticket dit
+   « DE MAMIE » parce que c'est ce que les parents ont écrit dans la configuration en
+   face de cette adresse — pas parce que l'expéditeur s'est nommé ainsi.
+
+### 7.4 Ce qu'un e-mail peut contenir
+
+| Contenu | Traitement |
+|---|---|
+| Photo jointe (JPEG, PNG, HEIC) | même pipeline que la caméra, en luminance et en mode automatique |
+| PDF joint | première page seulement — c'est ce que produisent les scanners de téléphone |
+| Texte du corps | rendu dans une police manuscrite, pour que ça reste une lettre et pas un ticket de caisse |
+| Objet, signature, citations | ignorés |
+
+Limites à fixer dès le départ : trois pages par message au maximum, pièces jointes
+au-delà d'une taille raisonnable refusées, tout le reste ignoré. Une boîte qui imprime
+tout ce qu'on lui envoie est une imprimante à spam.
+
+### 7.5 Dans l'autre sens
+
+Une position de la roue peut être un adulte plutôt qu'une boîte. La lettre part alors
+en e-mail, l'image en pièce jointe et affichée dans le corps du message, avec une
+phrase qui entretient la boucle : *« Réponds à ce message, même juste avec un dessin,
+Raphaël l'imprimera. »*
+
+**Le voyant « IL A LU TA LETTRE » ne peut pas dire la vérité pour un e-mail.** Aucun
+accusé de lecture fiable n'existe. Deux options, aucune parfaite : l'allumer à
+l'acceptation du message par le serveur — ce qui veut dire « partie », pas « lue » —
+ou attendre une réponse, au risque qu'il reste éteint des jours. Je prendrais la
+première, en le sachant : à 7 ans, un voyant qui ne se rallume jamais est pire qu'un
+voyant un peu optimiste.
+
+### 7.6 Ce que ça coûte à la rétention zéro, et il faut le savoir
+
+C'est le vrai prix de cette passerelle, et il ne se contourne pas.
+
+Côté boîte, on peut tenir la règle : le message est **supprimé du serveur IMAP après
+impression** (corbeille vidée comprise), et les envois ne sont pas enregistrés dans les
+« messages envoyés ». Côté adulte, non : sa copie reste dans sa boîte aux lettres pour
+toujours, et le message a transité par son fournisseur.
+
+Autrement dit : **le chemin boîte-à-boîte reste privé et sans trace, le chemin e-mail
+ne l'est pas.** C'est acceptable pour écrire à sa grand-mère, ça ne l'est pas comme
+transport par défaut.
+
+### 7.7 Pourquoi ne pas tout faire en e-mail
+
+La tentation est réelle : un seul mécanisme, aucune infrastructure, une mise en file
+d'attente naturelle quand l'autre bout est éteint, et l'ajout d'un correspondant se
+réduit à une ligne de configuration. On pourrait supprimer Tailscale.
+
+On ne le fait pas pour une raison : la correspondance de deux enfants de 7 ans serait
+alors stockée indéfiniment chez un fournisseur de messagerie. C'est très exactement ce
+que l'archivage local — refusé au §8.3 pour bien moins que ça — aurait fait. On perdrait
+aussi le seul accusé de réception honnête du système, celui qui se déclenche à
+l'impression réelle.
+
+Donc **deux transports, un seul modèle de message.** Une lettre est un PNG et quelques
+métadonnées, quel que soit le tuyau. Le code ne diffère qu'au dernier moment.
+
+### 7.8 Ce qu'il faut choisir
+
+- **Un fournisseur avec IMAP et sous-adressage.** Fastmail le fait nativement ;
+  Gmail aussi, au prix d'un mot de passe d'application ou d'OAuth.
+- **Une adresse dédiée par boîte**, qui ne sert qu'à ça et qui n'est jamais publiée
+  ailleurs que dans la liste blanche.
+
+## 8. Garde-fous
+
+### 8.1 Quota
 Cinq envois par jour, remis à zéro à 4 h, affichés en permanence par la jauge à cinq
 points (§4.4). Dépassement = le bouton ENVOYER répond par une note descendante, la
 jauge est déjà à zéro depuis le dernier envoi : aucune surprise, aucune lettre perdue.
@@ -436,19 +584,19 @@ un enfant pour ce que l'autre a fait.
 
 La pile de fiches A6 est un second quota, physique, plus pédagogique que le premier.
 
-### 7.2 Mode nuit
+### 8.2 Mode nuit
 Plage configurable (défaut 20 h – 7 h) : bouton d'envoi inerte avec un retour sonore
 « non », cloche coupée, impression différée. Les lettres arrivées la nuit sortent au
 premier appui après 7 h.
 
-### 7.3 Côté parents
+### 8.3 Côté parents
 Une page web accessible **uniquement depuis le LAN et depuis le tailnet** : réseau
 Wi-Fi, appairage, quota, horaires, calibration de la caméra, test d'impression,
 journal technique. **Pas de galerie, pas d'images, pas d'archive** — la page ne sait
 littéralement pas afficher une lettre. La surveillance parentale, c'est lire les
 tickets sur la table.
 
-## 8. Nomenclature et budget (par boîte, indicatif)
+## 9. Nomenclature et budget (par boîte, indicatif)
 
 | Poste | Choix | € |
 |---|---|---|
@@ -472,11 +620,11 @@ même petite alimentation, elle le fait redémarrer au milieu d'une lettre — p
 intermittente très pénible à diagnostiquer. **Alimentation séparée pour l'imprimante,
 masses reliées, dès le premier montage sur table.**
 
-## 9. Rester allumé : consommation, veille et fiabilité
+## 10. Rester allumé : consommation, veille et fiabilité
 
 **Choix : la boîte reste allumée en permanence. Pas de veille, pas de Wake-on-LAN.**
 
-### 9.1 Sur un Raspberry Pi, la veille n'existe pas
+### 10.1 Sur un Raspberry Pi, la veille n'existe pas
 
 Un Pi n'a pas d'état de sommeil au sens d'un portable : pas de suspend-to-RAM, pas de
 S3. Il n'y a que deux états, allumé et éteint. **Le repos, c'est le ralenti** — et le
@@ -484,7 +632,7 @@ ralenti d'un Pi 4 sans écran est déjà très bas. « Mettre en veille » signi
 couper l'alimentation et prévoir un circuit externe pour la rétablir, ce qui est un
 autre projet.
 
-### 9.2 Ce que ça coûte vraiment
+### 10.2 Ce que ça coûte vraiment
 
 | Poste | Puissance au repos | Sur un an |
 |---|---|---|
@@ -503,7 +651,7 @@ On peut gratter quelques dixièmes de watt en désactivant HDMI, Bluetooth et la
 d'activité dans `config.txt`. C'est gratuit, donc autant le faire, mais ça ne change
 pas la décision.
 
-### 9.3 Pourquoi le Wake-on-LAN ne s'applique pas
+### 10.3 Pourquoi le Wake-on-LAN ne s'applique pas
 
 Deux raisons, chacune suffisante :
 
@@ -516,7 +664,7 @@ Deux raisons, chacune suffisante :
    les puces des Pi. À vérifier en une commande sur ta carte : `ethtool eth0 | grep
    Wake` — il répondra `Supports Wake-on: d`, c'est-à-dire rien.
 
-### 9.4 La vraie raison de ne pas dormir : la cloche
+### 10.4 La vraie raison de ne pas dormir : la cloche
 
 Même si le réveil marchait, il ne faudrait pas s'en servir. **Une boîte endormie ne
 peut pas sonner.** Le courrier arriverait en silence et ne serait découvert que par
@@ -528,7 +676,7 @@ pour décider de démarrer.
 C'est donc une question de produit, pas de watts. La boîte est un objet de la maison,
 comme une lampe de couloir : elle est là, elle est prête, elle ne demande rien.
 
-### 9.5 Quelle machine, puisque les Zero 2 W sont introuvables
+### 10.5 Quelle machine, puisque les Zero 2 W sont introuvables
 
 **Le Pi 4 1 Go que tu as déjà est le bon choix, et sans ventilateur.**
 
@@ -550,7 +698,7 @@ comme une lampe de couloir : elle est là, elle est prête, elle ne demande rien
   l'écosystème Raspberry Pi. C'est acceptable et assumé ; le jour où ce serait un
   problème, le repli est une webcam USB, au prix de l'autofocus.
 
-### 9.6 Le vrai risque d'un objet allumé en permanence : la carte SD
+### 10.6 Le vrai risque d'un objet allumé en permanence : la carte SD
 
 Ce n'est pas la consommation, c'est la corruption. Un Pi débranché brutalement — et il
 le sera, par une rallonge tirée, un ménage, un orage — finit par abîmer sa carte SD.
@@ -567,7 +715,7 @@ Trois mesures, dans l'ordre du rapport bénéfice/effort :
 3. **Pas de swap**, journalisation en RAM (`log2ram` ou `Storage=volatile`). Moins
    d'écritures, plus de durée de vie.
 
-### 9.7 Optionnel : couper l'imprimante entre deux impressions
+### 10.7 Optionnel : couper l'imprimante entre deux impressions
 
 Un MOSFET ou un petit relais piloté par le GPIO peut couper l'alimentation de
 l'imprimante au repos et la rétablir avant impression — elle démarre instantanément.
@@ -578,7 +726,7 @@ réveil, donc un mode de panne de plus.
 l'aveugle une consommation qu'on n'a pas mesurée est le meilleur moyen d'ajouter une
 panne pour économiser un euro.
 
-## 10. La boîte chez le copain : la vraie difficulté
+## 11. La boîte chez le copain : la vraie difficulté
 
 Ce n'est pas un détail d'installation, c'est la contrainte qui décide si le projet
 survit à l'hiver. Une boîte chez quelqu'un d'autre, c'est : leur Wi-Fi, leur prise,
@@ -605,43 +753,53 @@ Option à garder en tête si leur réseau devient un problème récurrent : une 
 une SIM IoT (~3–5 €/mois) rend la boîte totalement indépendante de leur box. Trop tôt
 pour le prototype, mais c'est la sortie de secours.
 
-## 11. Feuille de route
+## 12. Feuille de route
 
 Chaque phase est utilisable et testable en vrai. On ne passe à la suivante qu'une fois
 la précédente stable pendant quelques jours.
 
-- **Phase 0 — La boucle locale.** Un seul Pi, caméra + imprimante, un bouton : on
-  scanne, on imprime sur sa propre imprimante. Aucun réseau. But : valider le pipeline
-  image, le format de fiche et le feutre **en faisant écrire ton fils pour de vrai**.
-  C'est la phase qui décide de tout le reste — si le ticket n'est pas beau et lisible,
-  rien d'autre ne compte, et ça se voit ici. Au passage : un wattmètre sur la prise
-  pour trancher §9.7, et un relevé de température après une heure boîtier fermé.
-  → **Le logiciel est écrit** (`src/faxme`, mode d'emploi dans `docs/PHASE0.md`) : le
-  pipeline, les fiches à imprimer, l'aperçu à taille réelle et la boucle bouton du Pi.
-  Ce qui reste est la validation avec du vrai papier et une vraie écriture.
-- **Phase 1 — Deux boîtes sur le même réseau** (1 week-end). Envoi/réception HTTP en
-  LAN, file persistante, idempotence, purge après impression. On les met dans deux
-  pièces de la maison : c'est déjà un jouet formidable, et le meilleur banc de test.
-- **Phase 2 — Deux maisons** (1 week-end). Tailscale, réessais, LEDs et cloche,
-  accusé de réception à l'impression, repli Wi-Fi en point d'accès.
-- **Phase 3 — Les garde-fous et le tableau de bord** (1 week-end). Les 8 voyants, la
-  roue, les 4 sons, quotas et jauge de crédits, mode nuit, page de configuration
-  parents, journal technique.
-- **Phase 4 — L'objet** (le plus long). Boîtier, fiches et feutre, démarrage
-  automatique, watchdog, résistance au débranchement sauvage, mise à jour à distance.
+**La passerelle e-mail (§7) est passée devant la deuxième boîte**, et c'est un
+changement d'ordre important : elle rend **une seule boîte utile toute seule**. On peut
+donc mettre l'objet en service à la maison sans rien demander à personne, découvrir si
+le rituel prend, et n'installer du matériel chez le copain qu'une fois qu'on sait que
+ça vaut le coup. Elle exerce au passage tout le modèle de message — file d'attente,
+bouton d'impression, mode nuit, quota — sans qu'il y ait deux appareils à déboguer en
+même temps.
 
-## 12. Modes de panne à traiter explicitement
+- **Phase 0 — La boucle locale.** ✅ *Logiciel écrit* (`src/faxme`, mode d'emploi dans
+  `docs/PHASE0.md`) : pipeline trait et dessin, fiches réglées et papier blanc, aperçu
+  à taille réelle, pilote ESC/POS, boucle bouton du Pi. Aucun réseau. Ce qui reste est
+  la validation avec du vrai papier : un wattmètre sur la prise pour trancher §10.7, et
+  un relevé de température après une heure boîtier fermé.
+- **Phase 1 — La passerelle e-mail** *(une boîte devient utile)*. Relève IMAP, liste
+  blanche et vérification SPF/DKIM, impression des photos et du texte, envoi SMTP vers
+  les adultes, suppression après impression. Utilisable dès le premier week-end : papa
+  en déplacement écrit, la boîte sonne à la maison.
+- **Phase 2 — Deux boîtes sur le même réseau.** Envoi/réception HTTP en LAN, file
+  persistante, idempotence, purge après impression. On les met dans deux pièces de la
+  maison : c'est déjà un jouet formidable, et le meilleur banc de test.
+- **Phase 3 — Deux maisons.** Tailscale, réessais, accusé de réception à l'impression,
+  repli Wi-Fi en point d'accès.
+- **Phase 4 — Les garde-fous et le tableau de bord.** Les 8 voyants, la roue, les 4
+  sons, quotas et jauge de crédits, mode nuit, page de configuration parents, journal
+  technique.
+- **Phase 5 — L'objet.** Boîtier, fiches et feutre, démarrage automatique, watchdog,
+  résistance au débranchement sauvage, mise à jour à distance.
+
+## 13. Modes de panne à traiter explicitement
 
 | Panne | Réponse attendue |
 |---|---|
 | Boîte d'en face éteinte | La lettre attend dans l'outbox et part au réveil. « Il a lu ta lettre » reste éteint, aucune alerte. |
 | Réseau coupé | APPELLE UN ADULTE + détail sur la page web. Envois mis en file, tout repart seul. |
-| Wi-Fi du copain changé | Point d'accès `faxme-setup` après 3 min (§10). |
+| Wi-Fi du copain changé | Point d'accès `faxme-setup` après 3 min (§11). |
 | Plus de papier | Voyant PLUS DE PAPIER. La lettre **reste non imprimée** dans l'inbox. |
 | Capture ratée (fiche de travers, doigt devant) | Appui long sur le bouton d'envoi = annuler la dernière lettre tant qu'elle n'est pas livrée. |
 | Ticket sorti puis déchiré/perdu | Appui long sur le bouton d'impression = réimprimer la dernière (24 h). |
 | Coupure de courant en pleine impression | La lettre reste marquée non imprimée : elle ressortira. Mieux vaut imprimer deux fois que perdre. |
 | Roue sur une position vide | Note « non » à l'appui sur ENVOYER. Ce n'est pas une panne. |
 | Fente vide ou fiche blanche | Détecté à la capture : note « non », ni envoi ni crédit consommé. |
-| Débranchement sauvage | Racine en lecture seule : rien à réparer au rallumage (§9.6). |
+| Débranchement sauvage | Racine en lecture seule : rien à réparer au rallumage (§10.6). |
+| E-mail d'un expéditeur inconnu | Jeté, jamais imprimé. Réexpédié aux parents si configuré. |
+| E-mail dont SPF ou DKIM échoue | Jeté, même si l'adresse est dans la liste blanche. |
 | Le Pi ne redémarre pas | Watchdog matériel + `Restart=always`. Un objet du quotidien ne se répare pas au clavier. |
