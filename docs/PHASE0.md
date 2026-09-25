@@ -155,6 +155,37 @@ petite. On décide sur cette base :
 | Boucles bouchées | Feutre plus fin, ou interligne plus large. |
 | Lignes de la fiche visibles sur le ticket | L'imprimante couleur ne sature pas le rouge : refaire les fiches, ou passer en `gray_channel = "luma"` avec du papier vierge. |
 
+## 5 bis. Avec un scanner plutôt qu'une caméra
+
+Le pipeline accepte une source SANE :
+
+```bash
+scanimage -L                                   # le scanner est-il reconnu ?
+faxme -c boite.toml rendre scanner -o sortie   # ou scanner:<périphérique>
+```
+
+À qualité de ticket identique, une numérisation coûte environ **cinq fois moins de
+calcul** qu'une photo (148 ms contre 716 ms ici) : l'image est déjà plate et
+géométriquement exacte. Avec cette source, mettre dans le TOML :
+
+```toml
+[capture]
+crop = [0, 0, 1, 1]      # le scanner cadre déjà la fiche
+
+[pipeline]
+working_factor = 1.2     # inutile de sur-échantillonner une image déjà nette
+```
+
+**Ne pas supprimer la normalisation d'éclairage** sous prétexte que le scanner éclaire
+uniformément : elle rehausse aussi le contraste local. Sans elle le trait tombe à
+1 point et la détection trait/dessin bascule à tort vers le tramage.
+
+**Ce qui compte n'est pas la résolution annoncée, c'est le pilote.** Un scanner n'est
+utilisable que s'il apparaît dans `scanimage -L`. Les scanners à main, ceux qui se
+présentent en clé USB avec une carte mémoire, et ceux qui exigent un logiciel Windows
+ne peuvent pas être déclenchés par le bouton d'un enfant, quelle que soit leur fiche
+technique. Vérifier le modèle exact dans la liste SANE avant d'acheter.
+
 ## 6. Sur le Pi : calibrer puis boucler
 
 **Calibration du recadrage**, une seule fois, caméra vissée et butées en place :

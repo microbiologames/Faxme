@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import io
+import shutil
+import subprocess
 from pathlib import Path
 
 from PIL import Image, ImageOps
@@ -55,8 +58,59 @@ class PiCameraSource(Source):
         self._camera.stop()
 
 
+class ScannerSource(Source):
+    """Un scanner à plat piloté par SANE (``scanimage``).
+
+    Voie alternative à la caméra, mesurée comme ~5 fois moins coûteuse en
+    calcul à qualité égale : l'éclairage est déjà plat et la géométrie exacte,
+    donc l'image de travail peut être beaucoup plus petite. À réserver aux
+    scanners **effectivement pilotables sous Linux** : un appareil qui se
+    présente en clé USB, ou qui exige un logiciel Windows, ne peut pas être
+    déclenché par un bouton d'enfant, quelle que soit sa résolution.
+
+    Avec cette source, mettre dans le TOML :
+    ``[capture] crop = [0, 0, 1, 1]`` et ``[pipeline] working_factor = 1.2``.
+    """
+
+    def __init__(self, config: Config, device: str = "", resolution: int = 200):
+        if shutil.which("scanimage") is None:
+            raise RuntimeError(
+                "scanimage est introuvable (apt install sane-utils). "
+                "Vérifier aussi que le scanner est reconnu : scanimage -L"
+            )
+        self.config = config
+        self.device = device
+        self.resolution = resolution
+
+    def _command(self) -> list[str]:
+        card = self.config.card
+        command = ["scanimage", "--format=png", "--mode", "Color",
+                   "--resolution", str(self.resolution)]
+        if self.device:
+            command += ["--device", self.device]
+        # On ne numérise que la surface de la fiche : inutile de balayer une A4
+        # entière pour une carte A6, c'est autant de secondes et de pixels.
+        command += ["-x", str(card.width_mm), "-y", str(card.height_mm)]
+        return command
+
+    def grab(self) -> Image.Image:
+        try:
+            done = subprocess.run(self._command(), capture_output=True, timeout=120)
+        except subprocess.TimeoutExpired as error:
+            raise RuntimeError("le scanner n'a pas répondu en 2 minutes") from error
+        if done.returncode != 0:
+            raise RuntimeError(
+                f"scanimage a échoué : {done.stderr.decode('utf-8', 'replace').strip()[:200]}"
+            )
+        return Image.open(io.BytesIO(done.stdout)).convert("RGB")
+
+
 def open_source(spec: str, config: Config) -> Source:
-    """``camera`` pour la caméra du Pi, n'importe quel chemin pour un fichier."""
+    """``camera``, ``scanner`` (éventuellement ``scanner:<périphérique>``),
+    ou n'importe quel chemin de fichier."""
     if spec == "camera":
         return PiCameraSource(config)
+    if spec == "scanner" or spec.startswith("scanner:"):
+        _, _, device = spec.partition(":")
+        return ScannerSource(config, device=device)
     return FileSource(spec)

@@ -111,22 +111,26 @@ Deux points pratiques :
   ticket doit vraiment survivre, une photo prise par un parent avec son téléphone
   fait le travail, hors du système.
 
-### 4.2 Capture : caméra fixe, pas de scanner
+### 4.2 Capture : caméra fixe, scanner en solution de repli
 
 **Choix : caméra fixe sur potence, avec butées papier et éclairage LED intégré.**
+Le scanner reste une voie utilisable, et le code la prend en charge — mais à des
+conditions strictes (§4.2 bis).
 
-| | Scanner USB à plat | Caméra fixe |
+| | Scanner à plat | Caméra fixe |
 |---|---|---|
 | Qualité | Excellente, éclairage maîtrisé | Bonne si l'éclairage est intégré |
 | Vitesse | 10–25 s | < 1 s |
+| Calcul | ~5× moins (mesuré, §4.2 bis) | référence |
 | Pièces mobiles | Oui (panne n° 1 à terme) | Aucune |
-| Encombrement | Impose un objet plat et large | Boîtier compact vertical |
-| Logiciel | `scanimage`, trivial | picamera2 + traitement d'image |
-| Coût | 30–60 € d'occasion | ~35 € (Camera Module 3) |
+| Encombrement | Une A4 à plat : 25 × 37 cm pour numériser une carte A6 | Boîtier compact vertical |
+| Pilote | SANE — à vérifier **modèle par modèle** | picamera2, toujours disponible |
+| Coût | 30–80 € | ~35 € (Camera Module 3) |
 
-Le scanner gagne sur le logiciel, la caméra gagne sur tout le reste — et surtout sur
-l'ergonomie : glisser une fiche et appuyer, c'est instantané. On paie ça par un
-pipeline image à écrire, mais c'est du travail fait une fois.
+Le scanner gagne sur le logiciel et sur le calcul, la caméra gagne sur tout le reste —
+et surtout sur l'ergonomie enfant : glisser une fiche et appuyer, c'est instantané.
+On paie ça par un pipeline image à écrire, mais c'est du travail fait une fois, et il
+est fait.
 
 **L'astuce qui simplifie tout : la géométrie est fixe.** Butées mécaniques + caméra
 vissée = la fiche est toujours au même endroit dans l'image. On supprime la détection
@@ -137,46 +141,46 @@ moins, et c'est ce qui rend le projet faisable en quelques week-ends.
 Prendre la **Camera Module 3 (autofocus)** plutôt qu'une caméra à focale fixe : elle
 évite tout le réglage mécanique fin de la distance de mise au point.
 
-**Pipeline image** (une fiche → un raster prêt à imprimer) :
+### 4.2 bis Ce qu'un scanner change vraiment
 
-```
-capture RAW
-  → rotation + recadrage fixe (calibré une fois à l'installation)
-  → canal rouge  ← fait disparaître la réglure orange de la fiche
-  → réduction à 2× la largeur du ticket (1152 px)
-  → normalisation d'éclairage (division par un flou gaussien large)
-  → binarisation adaptative de Sauvola — PAS de tramage Floyd-Steinberg
-  → effacement d'une bande de 3 mm sur le pourtour  ← la découpe du papier
-  → estimation puis correction de l'inclinaison (±4°), puis rebinarisation
-  → rognage en hauteur sur l'écriture (l'échelle en largeur ne bouge pas)
-  → réduction à 576 points, seuil bas pour ne pas perdre les traits fins
-  → épaississement du trait, seulement s'il fait moins de 3 points
-  → en-tête « DE NINO » + date, dessiné dans le même raster
-  → raster ESC/POS (GS v 0)
-```
+Mesuré sur le pipeline réel, à qualité de ticket identique (trait de 5 points,
+même longueur de ticket) :
 
-Quatre points appris en écrivant ce code, et qui ne se devinaient pas :
+| Entrée | Temps de traitement |
+|---|---|
+| Photo de caméra, réglages actuels | 716 ms |
+| Numérisation 200 dpi, mêmes réglages | 334 ms |
+| Numérisation 200 dpi, image de travail réduite à 1,2× | **148 ms** |
 
-- **Le bord du papier est le piège principal.** Sans l'effacement du pourtour, la
-  découpe de la fiche devient le plus gros trait de l'image : elle capture le cadrage
-  *et* fait échouer le redressement, dont le critère est alors dominé par cette barre
-  noire. Trois millimètres suffisent, à condition de calibrer le recadrage **à
-  l'intérieur** du papier et non sur son bord.
-- **Rogner en largeur est une fausse bonne idée.** Recadrer sur l'écriture fait bien
-  sortir des lettres plus grosses, mais l'échelle change alors d'une lettre à l'autre :
-  trois mots deviennent une affiche. On rogne donc en hauteur seulement — le ticket ne
-  fait que la longueur de ce qui a été écrit, et une minuscule fait toujours la même
-  taille.
-- **On n'épaissit le trait que s'il est trop fin.** Dilater systématiquement bouche les
-  boucles des *a*, des *e* et des *o* dès qu'on écrit au feutre large. La dilatation
-  est donc conditionnée à une mesure de l'épaisseur réelle.
-- **Deux fois la résolution finale suffit.** Mesuré : passer de 3× à 2× divise le temps
-  de traitement par trois sans changer l'épaisseur de trait, la longueur du ticket ni
-  l'angle trouvé, y compris avec un trait fin.
+Soit **un facteur 4,8**, et la raison est simple : l'image entrante est déjà plate et
+géométriquement exacte, donc l'image de travail peut être beaucoup plus petite.
 
-Le point contre-intuitif : **surtout pas de tramage.** Le tramage est fait pour les
-photos ; sur du trait de feutre il produit une bouillie grise, consomme de l'énergie
-thermique et ralentit l'impression. On veut du noir et blanc franc.
+Piège rencontré en mesurant, qui vaut d'être noté : supprimer la normalisation
+d'éclairage sous prétexte que le scanner éclaire uniformément donne un gain apparent
+de 9× — et casse tout. Cette étape ne fait pas que corriger l'éclairage, elle
+**rehausse le contraste local** ; sans elle le trait tombe à 1 point, et la mesure de
+gris moyen s'envole (0,52 au lieu de 0,007), ce qui fait basculer à tort la détection
+trait/dessin vers le tramage. **On la garde, même avec un scanner.**
+
+**La vraie question n'est pas les dpi, c'est le pilote.** Un scanner n'est utilisable
+ici que s'il est **commandable depuis le Pi**, c'est-à-dire reconnu par SANE et
+déclenchable par `scanimage`. Sont donc inutilisables, quelle que soit leur fiche
+technique :
+
+- les **scanners à main** (on les fait glisser à la main : un enfant de 7 ans produira
+  des images étirées et de travers) ;
+- tout appareil qui se présente en **clé USB** avec une carte mémoire, et dont les
+  fichiers ne sortent qu'en les recopiant ;
+- tout appareil dont la numérisation ne se déclenche que par un **logiciel Windows**.
+
+Un bouton d'enfant doit provoquer une numérisation. Un appareil qu'on ne peut pas
+commander ne peut pas faire partie de la boîte. En pratique, cela veut dire vérifier le
+modèle exact dans la liste des périphériques pris en charge par SANE avant d'acheter —
+les scanners à plat Canon LiDE sont historiquement le pari le plus sûr.
+
+Le code accepte la source `scanner` (`faxme rendre scanner:<périphérique>`), qui passe
+par `scanimage` et ne numérise que la surface d'une fiche. Avec cette source, mettre
+`crop = [0, 0, 1, 1]` et `working_factor = 1.2` dans le TOML.
 
 ### 4.3 Transport : Tailscale, pas de serveur
 
