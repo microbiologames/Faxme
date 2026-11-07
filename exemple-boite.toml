@@ -69,3 +69,13 @@ wheel = 3
 # kind = "box"
 # address = "leo-boite.tailnet"
 # wheel = 1
+
+# --- profil Raspberry Pi Zero 2 W --------------------------------------------
+# À décommenter sur un Zero 2 W (512 Mo). Mesuré : divise la mémoire de pointe
+# par deux sans rien changer au ticket. Inutile sur un Pi 4.
+#
+# [capture]
+# resolution = [2028, 1520]   # 3 Mpx, largement assez pour une fiche A6
+#
+# [pipeline]
+# working_factor = 1.5

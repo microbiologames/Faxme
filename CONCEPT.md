@@ -638,25 +638,68 @@ tickets sur la table.
 
 | Poste | Choix | € |
 |---|---|---|
-| Calculateur | Raspberry Pi 4 1 Go (déjà là) ou 2 Go, **sans ventilateur** | 0–60 |
-| Refroidissement | Dissipateur passif ou boîtier alu radiateur | 8 |
-| Caméra | Camera Module 3 (autofocus) + nappe | 35 |
+| Calculateur | **Pi Zero 2 W** (boîte n° 2) ou le Pi 4 déjà là (boîte n° 1) | 0–25 |
+| Refroidissement | Dissipateur passif collé. **Jamais de ventilateur.** | 0–8 |
+| Caméra | Camera Module 3 (autofocus) | 35 |
+| **Nappe caméra** | **Nappe étroite spécifique Zero** — celle fournie avec la caméra ne rentre pas | 6 |
+| **Adaptateur USB** | micro-USB OTG → USB-A, pour l'imprimante (Zero 2 W seulement) | 5 |
 | Imprimante | Thermique 80 mm ESC/POS USB, **avec capteur de papier** | 55–90 |
 | Boutons | 2 arcade 30 mm à LED (ENVOYER / IMPRIMER) | 10 |
 | Sélecteur | Commutateur rotatif 5 positions + bouton flèche | 5 |
 | Voyants | 8 LED (courrier, lu, 5 crédits, papier) + rouge alerte | 6 |
 | Son | Solénoïde + cloche, ampli, potentiomètre de volume | 15–25 |
 | Éclairage | Bandeau LED blanc + diffuseur | 8 |
-| Alimentation | **PSU dédiée pour l'imprimante** + PSU Pi officielle 3 A | 20 |
+| Alimentation | **PSU dédiée pour l'imprimante** + PSU du Pi | 20 |
+| Carte SD | 16–32 Go, classe A1 ou A2 | 8 |
 | Boîtier | Bois/contreplaqué, découpe simple | 15–30 |
 | Divers | Papier sans phénol, feutres, fiches, porte-photos, câbles | 25 |
-| | **Total** | **~230–320 € / boîte** |
+| | **Total** | **~210–290 € / boîte** |
 
 **Le piège classique, à traiter dès le jour 1 :** une imprimante thermique tire des
 pointes de plusieurs ampères pendant l'impression. Alimentée depuis le Pi ou depuis la
 même petite alimentation, elle le fait redémarrer au milieu d'une lettre — panne
 intermittente très pénible à diagnostiquer. **Alimentation séparée pour l'imprimante,
 masses reliées, dès le premier montage sur table.**
+
+### 9.1 Le Pi Zero 2 W convient, et voici les mesures
+
+Le Zero 2 W (quatre cœurs Cortex-A53, 512 Mo) est le bon choix pour la deuxième boîte.
+Il est en ARMv8 comme le Pi 4, donc **la même image système 64 bits** : l'argument
+d'homogénéité du §10.5 tient. À ne pas confondre avec le **Zero W de 2017**, mono-cœur
+ARMv6, qui lui ne convient pas — pas de 64 bits, et de l'ordre de dix fois plus lent.
+
+Mesures du pipeline sur une machine de référence, à résultat de ticket identique :
+
+| Cas | Temps | Mémoire de pointe |
+|---|---|---|
+| Fiche de travers, réglages par défaut | 563 ms | 154 Mo |
+| **Fiche droite contre les butées** (le cas réel) | 309 ms | 136 Mo |
+| Fiche droite, image de travail 1,5× | 216 ms | 76 Mo |
+| Fiche droite, 1,5× et capture à 3 Mpx | **206 ms** | **76 Mo** |
+
+Deux enseignements :
+
+- **Les butées paient une deuxième fois.** Une fiche droite évite la rotation, donc la
+  seconde binarisation : 309 ms au lieu de 563. La mécanique économise plus de calcul
+  que n'importe quelle optimisation de code.
+- **Sur 512 Mo, c'est la mémoire qu'il faut viser, pas le processeur.** Descendre
+  l'image de travail à 1,5× et capturer à 3 Mpx au lieu de 12 divise la pointe par
+  deux, sans rien changer au ticket. On n'a jamais eu besoin de 12 mégapixels pour
+  une carte A6.
+
+Réglages à mettre dans le TOML d'un Zero 2 W :
+
+```toml
+[capture]
+resolution = [2028, 1520]   # 3 Mpx : largement assez pour une A6
+
+[pipeline]
+working_factor = 1.5
+```
+
+Compter quelques secondes de traitement par lettre sur le Zero 2 W plutôt que la
+fraction de seconde d'une machine de bureau — sans commune mesure avec le temps
+d'impression, et parfaitement acceptable pour l'usage.
 
 ## 10. Rester allumé : consommation, veille et fiabilité
 
